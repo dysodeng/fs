@@ -115,7 +115,7 @@ func (w *obsReadOnlyWrapper) Read(p []byte) (n int, err error) {
 	return w.reader.Read(p)
 }
 
-func (w *obsReadOnlyWrapper) Write(p []byte) (n int, err error) {
+func (w *obsReadOnlyWrapper) Write(_ []byte) (n int, err error) {
 	return 0, fmt.Errorf("cannot write to read-only file")
 }
 

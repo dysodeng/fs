@@ -80,7 +80,7 @@ func (m *minioFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) 
 	return fileInfos, nil
 }
 
-func (m *minioFs) MakeDir(ctx context.Context, path string, perm os.FileMode) error {
+func (m *minioFs) MakeDir(_ context.Context, _ string, _ os.FileMode) error {
 	// MinIO目录在写入文件时自动创建
 	return nil
 }
@@ -117,7 +117,7 @@ func (m *minioFs) Open(ctx context.Context, path string) (io.ReadCloser, error) 
 	return m.client.GetObject(ctx, m.config.BucketName, path, minio.GetObjectOptions{})
 }
 
-func (m *minioFs) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
+func (m *minioFs) OpenFile(ctx context.Context, path string, flag int, _ os.FileMode) (io.ReadWriteCloser, error) {
 	// MinIO不支持追加模式，这里实现读写功能
 	if flag&os.O_RDWR != 0 {
 		return newMinioReadWriter(ctx, m.client, m.config.BucketName, path), nil
@@ -186,7 +186,9 @@ func (m *minioFs) GetMimeType(ctx context.Context, path string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	defer obj.Close()
+	defer func() {
+		_ = obj.Close()
+	}()
 
 	buffer := make([]byte, 512)
 	_, err = obj.Read(buffer)
@@ -237,17 +239,12 @@ func (m *minioFs) GetMetadata(ctx context.Context, path string) (map[string]inte
 
 func (m *minioFs) Exists(ctx context.Context, path string) (bool, error) {
 	// 先检查是否为文件
-	_, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
-	if err == nil {
+	if ok, err := m.IsFile(ctx, path); err == nil && ok {
 		return true, nil
 	}
 
 	// 如果不是文件，检查是否为目录
-	isDir, err := m.IsDir(ctx, path)
-	if err != nil {
-		return false, err
-	}
-	return isDir, nil
+	return m.IsDir(ctx, path)
 }
 
 func (m *minioFs) IsDir(ctx context.Context, path string) (bool, error) {

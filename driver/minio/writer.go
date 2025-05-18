@@ -121,7 +121,7 @@ func (w *minioReadOnlyWrapper) Read(p []byte) (n int, err error) {
 	return w.reader.Read(p)
 }
 
-func (w *minioReadOnlyWrapper) Write(p []byte) (n int, err error) {
+func (w *minioReadOnlyWrapper) Write(_ []byte) (n int, err error) {
 	return 0, fmt.Errorf("cannot write to read-only file")
 }
 

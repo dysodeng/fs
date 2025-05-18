@@ -88,7 +88,7 @@ func (o *ossFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) {
 	return fileInfos, nil
 }
 
-func (o *ossFs) MakeDir(ctx context.Context, path string, perm os.FileMode) error {
+func (o *ossFs) MakeDir(_ context.Context, _ string, _ os.FileMode) error {
 	// OSS目录在写入文件时自动创建
 	return nil
 }
@@ -133,7 +133,7 @@ func (o *ossFs) Open(ctx context.Context, path string) (io.ReadCloser, error) {
 	return o.bucket.GetObject(path, oss.WithContext(ctx))
 }
 
-func (o *ossFs) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
+func (o *ossFs) OpenFile(ctx context.Context, path string, flag int, _ os.FileMode) (io.ReadWriteCloser, error) {
 	if flag&os.O_RDWR != 0 {
 		return newOssReadWriter(ctx, o.bucket, path), nil
 	}
@@ -246,11 +246,8 @@ func (o *ossFs) GetMetadata(ctx context.Context, path string) (map[string]interf
 }
 
 func (o *ossFs) Exists(ctx context.Context, path string) (bool, error) {
-	exist, err := o.bucket.IsObjectExist(path, oss.WithContext(ctx))
-	if err != nil {
-		return false, err
-	}
-	if exist {
+	// 判断文件是否存在
+	if ok, err := o.IsFile(ctx, path); err == nil && ok {
 		return true, nil
 	}
 

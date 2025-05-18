@@ -271,18 +271,10 @@ func (o *obsFs) GetMetadata(ctx context.Context, path string) (map[string]interf
 }
 
 func (o *obsFs) Exists(ctx context.Context, path string) (bool, error) {
-	_, err := o.client.GetObjectMetadata(&obs.GetObjectMetadataInput{
-		Bucket: o.config.BucketName,
-		Key:    path,
-	})
-	if err != nil {
-		var obsErr obs.ObsError
-		if errors.As(err, &obsErr) && obsErr.StatusCode == 404 {
-			return false, nil
-		}
-		return false, err
+	if ok, err := o.IsFile(ctx, path); err == nil && ok {
+		return true, nil
 	}
-	return true, nil
+	return o.IsDir(ctx, path)
 }
 
 func (o *obsFs) IsDir(ctx context.Context, path string) (bool, error) {

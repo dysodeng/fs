@@ -21,5 +21,7 @@ func main() {
 		examples.AliOss()
 	case "hw_obs":
 		examples.HwObs()
+	case "tx_cos":
+		examples.TxCos()
 	}
 }
