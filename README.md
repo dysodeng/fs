@@ -63,9 +63,9 @@ func main() {
         Endpoint:        "play.min.io",
         AccessKeyID:     "your-access-key",
         SecretAccessKey: "your-secret-key",
-        UseSSL:         true,
-        BucketName:     "your-bucket",
-        Location:       "us-east-1",
+        UseSSL:          true,
+        BucketName:      "your-bucket",
+        Location:        "us-east-1",
     }
 	
     fs, err := minio.New(config)
@@ -97,7 +97,7 @@ func main() {
         Endpoint:        "oss-cn-hangzhou.aliyuncs.com",
         AccessKeyID:     "your-access-key",
         SecretAccessKey: "your-secret-key",
-        BucketName:     "your-bucket",
+        BucketName:      "your-bucket",
     }
 	
     fs, err := alioss.New(config)
@@ -129,7 +129,7 @@ func main() {
         Endpoint:        "obs.cn-north-4.myhuaweicloud.com",
         AccessKeyID:     "your-access-key",
         SecretAccessKey: "your-secret-key",
-        BucketName:     "your-bucket",
+        BucketName:      "your-bucket",
     }
 	
     fs, err := hwobs.New(config)
@@ -177,3 +177,35 @@ func main() {
     writer.Close()
 }
 ```
+
+### AWS S3
+```go
+package main
+
+import (
+    "context"
+    "github.com/dysodeng/fs/driver/s3"
+)
+
+func main() {
+    config := s3.Config{
+        Region:          "us-east-1",
+        Endpoint:        "https://s3.amazonaws.com", // 可选
+        AccessKeyID:     "your-access-key",
+        SecretAccessKey: "your-secret-key",
+        BucketName:      "your-bucket",
+    }
+    
+    fs, err := s3.New(config)
+    if err != nil {
+        panic(err)
+    }
+    
+    // 写入文件
+    writer, err := fs.Create(context.Background(), "test.txt")
+    if err != nil {
+        panic(err)
+    }
+    writer.Write([]byte("Hello, S3!"))
+    writer.Close()
+}
