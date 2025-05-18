@@ -61,9 +61,8 @@ func New(config Config) (fs.FileSystem, error) {
 	}, nil
 }
 
-func (m *minioFs) List(path string) ([]fs.FileInfo, error) {
+func (m *minioFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) {
 	var fileInfos []fs.FileInfo
-	ctx := context.Background()
 
 	// 使用ListObjects来获取指定前缀的对象
 	opts := minio.ListObjectsOptions{
@@ -81,13 +80,12 @@ func (m *minioFs) List(path string) ([]fs.FileInfo, error) {
 	return fileInfos, nil
 }
 
-func (m *minioFs) MakeDir(path string, perm os.FileMode) error {
+func (m *minioFs) MakeDir(ctx context.Context, path string, perm os.FileMode) error {
 	// MinIO目录在写入文件时自动创建
 	return nil
 }
 
-func (m *minioFs) RemoveDir(path string) error {
-	ctx := context.Background()
+func (m *minioFs) RemoveDir(ctx context.Context, path string) error {
 	opts := minio.ListObjectsOptions{
 		Prefix:    filepath.Clean(path) + "/",
 		Recursive: true,
@@ -103,45 +101,45 @@ func (m *minioFs) RemoveDir(path string) error {
 	return nil
 }
 
-func (m *minioFs) Create(path string) (io.WriteCloser, error) {
-	return m.CreateWithOptions(path, fs.CreateOptions{})
+func (m *minioFs) Create(ctx context.Context, path string) (io.WriteCloser, error) {
+	return m.CreateWithOptions(ctx, path, fs.CreateOptions{})
 }
 
-func (m *minioFs) CreateWithMetadata(path string, metadata fs.Metadata) (io.WriteCloser, error) {
-	return m.CreateWithOptions(path, fs.CreateOptions{Metadata: metadata})
+func (m *minioFs) CreateWithMetadata(ctx context.Context, path string, metadata fs.Metadata) (io.WriteCloser, error) {
+	return m.CreateWithOptions(ctx, path, fs.CreateOptions{Metadata: metadata})
 }
 
-func (m *minioFs) CreateWithOptions(path string, options fs.CreateOptions) (io.WriteCloser, error) {
-	return newMinioWriter(m.client, m.config.BucketName, path, options), nil
+func (m *minioFs) CreateWithOptions(ctx context.Context, path string, options fs.CreateOptions) (io.WriteCloser, error) {
+	return newMinioWriter(ctx, m.client, m.config.BucketName, path, options), nil
 }
 
-func (m *minioFs) Open(path string) (io.ReadCloser, error) {
-	return m.client.GetObject(context.Background(), m.config.BucketName, path, minio.GetObjectOptions{})
+func (m *minioFs) Open(ctx context.Context, path string) (io.ReadCloser, error) {
+	return m.client.GetObject(ctx, m.config.BucketName, path, minio.GetObjectOptions{})
 }
 
-func (m *minioFs) OpenFile(path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
+func (m *minioFs) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
 	// MinIO不支持追加模式，这里实现读写功能
 	if flag&os.O_RDWR != 0 {
-		return newMinioReadWriter(m.client, m.config.BucketName, path), nil
+		return newMinioReadWriter(ctx, m.client, m.config.BucketName, path), nil
 	}
 	if flag&os.O_WRONLY != 0 {
 		// 对于只写模式，也返回 ReadWriter，但读取时会返回错误
-		return newMinioReadWriter(m.client, m.config.BucketName, path), nil
+		return newMinioReadWriter(ctx, m.client, m.config.BucketName, path), nil
 	}
 	// 对于只读模式，包装成 ReadWriteCloser
-	reader, err := m.Open(path)
+	reader, err := m.Open(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 	return newMinioReadOnlyWrapper(reader), nil
 }
 
-func (m *minioFs) Remove(path string) error {
-	return m.client.RemoveObject(context.Background(), m.config.BucketName, path, minio.RemoveObjectOptions{})
+func (m *minioFs) Remove(ctx context.Context, path string) error {
+	return m.client.RemoveObject(ctx, m.config.BucketName, path, minio.RemoveObjectOptions{})
 }
 
-func (m *minioFs) Copy(src, dst string) error {
-	_, err := m.client.CopyObject(context.Background(),
+func (m *minioFs) Copy(ctx context.Context, src, dst string) error {
+	_, err := m.client.CopyObject(ctx,
 		minio.CopyDestOptions{
 			Bucket: m.config.BucketName,
 			Object: dst,
@@ -153,28 +151,28 @@ func (m *minioFs) Copy(src, dst string) error {
 	return err
 }
 
-func (m *minioFs) Move(src, dst string) error {
+func (m *minioFs) Move(ctx context.Context, src, dst string) error {
 	// 先复制后删除来实现移动
-	if err := m.Copy(src, dst); err != nil {
+	if err := m.Copy(ctx, src, dst); err != nil {
 		return err
 	}
-	return m.Remove(src)
+	return m.Remove(ctx, src)
 }
 
-func (m *minioFs) Rename(oldPath, newPath string) error {
-	return m.Move(oldPath, newPath)
+func (m *minioFs) Rename(ctx context.Context, oldPath, newPath string) error {
+	return m.Move(ctx, oldPath, newPath)
 }
 
-func (m *minioFs) Stat(path string) (fs.FileInfo, error) {
-	info, err := m.client.StatObject(context.Background(), m.config.BucketName, path, minio.StatObjectOptions{})
+func (m *minioFs) Stat(ctx context.Context, path string) (fs.FileInfo, error) {
+	info, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return newMinioFileInfo(info), nil
 }
 
-func (m *minioFs) GetMimeType(path string) (string, error) {
-	stat, err := m.client.StatObject(context.Background(), m.config.BucketName, path, minio.StatObjectOptions{})
+func (m *minioFs) GetMimeType(ctx context.Context, path string) (string, error) {
+	stat, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -184,7 +182,7 @@ func (m *minioFs) GetMimeType(path string) (string, error) {
 	}
 
 	// 如果对象没有 ContentType，则读取文件内容进行检测
-	obj, err := m.Open(path)
+	obj, err := m.Open(ctx, path)
 	if err != nil {
 		return "", err
 	}
@@ -199,7 +197,7 @@ func (m *minioFs) GetMimeType(path string) (string, error) {
 	return http.DetectContentType(buffer), nil
 }
 
-func (m *minioFs) SetMetadata(path string, metadata map[string]interface{}) error {
+func (m *minioFs) SetMetadata(ctx context.Context, path string, metadata map[string]interface{}) error {
 	// 将metadata转换为字符串map
 	strMetadata := make(map[string]string)
 	for k, v := range metadata {
@@ -207,7 +205,7 @@ func (m *minioFs) SetMetadata(path string, metadata map[string]interface{}) erro
 	}
 
 	// MinIO中需要通过复制对象来更新元数据
-	_, err := m.client.CopyObject(context.Background(),
+	_, err := m.client.CopyObject(ctx,
 		minio.CopyDestOptions{
 			Bucket:          m.config.BucketName,
 			Object:          path + "_tmp",
@@ -221,11 +219,11 @@ func (m *minioFs) SetMetadata(path string, metadata map[string]interface{}) erro
 	if err != nil {
 		return err
 	}
-	return m.Move(path+"_tmp", path)
+	return m.Move(ctx, path+"_tmp", path)
 }
 
-func (m *minioFs) GetMetadata(path string) (map[string]interface{}, error) {
-	info, err := m.client.StatObject(context.Background(), m.config.BucketName, path, minio.StatObjectOptions{})
+func (m *minioFs) GetMetadata(ctx context.Context, path string) (map[string]interface{}, error) {
+	info, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -237,23 +235,22 @@ func (m *minioFs) GetMetadata(path string) (map[string]interface{}, error) {
 	return metadata, nil
 }
 
-func (m *minioFs) Exists(path string) (bool, error) {
+func (m *minioFs) Exists(ctx context.Context, path string) (bool, error) {
 	// 先检查是否为文件
-	_, err := m.client.StatObject(context.Background(), m.config.BucketName, path, minio.StatObjectOptions{})
+	_, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
 	if err == nil {
 		return true, nil
 	}
 
 	// 如果不是文件，检查是否为目录
-	isDir, err := m.IsDir(path)
+	isDir, err := m.IsDir(ctx, path)
 	if err != nil {
 		return false, err
 	}
 	return isDir, nil
 }
 
-func (m *minioFs) IsDir(path string) (bool, error) {
-	ctx := context.Background()
+func (m *minioFs) IsDir(ctx context.Context, path string) (bool, error) {
 	opts := minio.ListObjectsOptions{
 		Prefix:    strings.TrimRight(path, "/") + "/",
 		Recursive: false,
@@ -271,8 +268,8 @@ func (m *minioFs) IsDir(path string) (bool, error) {
 	return true, nil
 }
 
-func (m *minioFs) IsFile(path string) (bool, error) {
-	_, err := m.client.StatObject(context.Background(), m.config.BucketName, path, minio.StatObjectOptions{})
+func (m *minioFs) IsFile(ctx context.Context, path string) (bool, error) {
+	_, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
 	if err == nil {
 		return true, nil
 	}

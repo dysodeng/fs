@@ -2,6 +2,7 @@ package alioss
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -11,14 +12,16 @@ import (
 
 // ossWriter 实现 io.WriteCloser 接口
 type ossWriter struct {
+	ctx     context.Context
 	bucket  *oss.Bucket
 	path    string
 	buffer  *bytes.Buffer
 	options fs.CreateOptions
 }
 
-func newOssWriter(bucket *oss.Bucket, path string, options fs.CreateOptions) *ossWriter {
+func newOssWriter(ctx context.Context, bucket *oss.Bucket, path string, options fs.CreateOptions) *ossWriter {
 	return &ossWriter{
+		ctx:     ctx,
 		bucket:  bucket,
 		path:    path,
 		buffer:  bytes.NewBuffer(nil),
@@ -27,25 +30,37 @@ func newOssWriter(bucket *oss.Bucket, path string, options fs.CreateOptions) *os
 }
 
 func (w *ossWriter) Write(p []byte) (n int, err error) {
-	return w.buffer.Write(p)
+	select {
+	case <-w.ctx.Done():
+		return 0, w.ctx.Err()
+	default:
+		return w.buffer.Write(p)
+	}
 }
 
 func (w *ossWriter) Close() error {
-	var options []oss.Option
-
-	// 设置 ContentType
-	if w.options.ContentType != "" {
-		options = append(options, oss.ContentType(w.options.ContentType))
-	}
-
-	// 处理metadata
-	if w.options.Metadata != nil {
-		for k, v := range w.options.Metadata {
-			options = append(options, oss.Meta(k, fmt.Sprintf("%v", v)))
+	select {
+	case <-w.ctx.Done():
+		return w.ctx.Err()
+	default:
+		options := []oss.Option{
+			oss.WithContext(w.ctx),
 		}
-	}
 
-	return w.bucket.PutObject(w.path, bytes.NewReader(w.buffer.Bytes()), options...)
+		// 设置 ContentType
+		if w.options.ContentType != "" {
+			options = append(options, oss.ContentType(w.options.ContentType))
+		}
+
+		// 处理metadata
+		if w.options.Metadata != nil {
+			for k, v := range w.options.Metadata {
+				options = append(options, oss.Meta(k, fmt.Sprintf("%v", v)))
+			}
+		}
+
+		return w.bucket.PutObject(w.path, bytes.NewReader(w.buffer.Bytes()), options...)
+	}
 }
 
 // ossReadWriter 实现 io.ReadWriteCloser 接口
@@ -54,16 +69,16 @@ type ossReadWriter struct {
 	reader io.ReadCloser
 }
 
-func newOssReadWriter(bucket *oss.Bucket, path string) *ossReadWriter {
+func newOssReadWriter(ctx context.Context, bucket *oss.Bucket, path string) *ossReadWriter {
 	return &ossReadWriter{
-		ossWriter: newOssWriter(bucket, path, fs.CreateOptions{}),
+		ossWriter: newOssWriter(ctx, bucket, path, fs.CreateOptions{}),
 	}
 }
 
 func (rw *ossReadWriter) Read(p []byte) (n int, err error) {
 	if rw.reader == nil {
 		var err error
-		rw.reader, err = rw.bucket.GetObject(rw.path)
+		rw.reader, err = rw.bucket.GetObject(rw.path, oss.WithContext(rw.ctx))
 		if err != nil {
 			return 0, err
 		}
@@ -73,7 +88,7 @@ func (rw *ossReadWriter) Read(p []byte) (n int, err error) {
 
 func (rw *ossReadWriter) Close() error {
 	if rw.reader != nil {
-		rw.reader.Close()
+		_ = rw.reader.Close()
 	}
 	return rw.ossWriter.Close()
 }

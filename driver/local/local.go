@@ -1,6 +1,7 @@
 package local
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"os"
@@ -25,7 +26,7 @@ func (localFs *local) fullPath(path string) string {
 	return filepath.Join(localFs.rootPath, path)
 }
 
-func (localFs *local) List(path string) ([]fs.FileInfo, error) {
+func (localFs *local) List(ctx context.Context, path string) ([]fs.FileInfo, error) {
 	fullPath := localFs.fullPath(path)
 	entries, err := os.ReadDir(fullPath)
 	if err != nil {
@@ -43,23 +44,23 @@ func (localFs *local) List(path string) ([]fs.FileInfo, error) {
 	return files, nil
 }
 
-func (localFs *local) MakeDir(path string, perm os.FileMode) error {
+func (localFs *local) MakeDir(ctx context.Context, path string, perm os.FileMode) error {
 	return os.MkdirAll(localFs.fullPath(path), perm)
 }
 
-func (localFs *local) RemoveDir(path string) error {
+func (localFs *local) RemoveDir(ctx context.Context, path string) error {
 	return os.RemoveAll(localFs.fullPath(path))
 }
 
-func (localFs *local) Create(path string) (io.WriteCloser, error) {
-	return localFs.CreateWithOptions(path, fs.CreateOptions{})
+func (localFs *local) Create(ctx context.Context, path string) (io.WriteCloser, error) {
+	return localFs.CreateWithOptions(ctx, path, fs.CreateOptions{})
 }
 
-func (localFs *local) CreateWithMetadata(path string, metadata fs.Metadata) (io.WriteCloser, error) {
-	return localFs.CreateWithOptions(path, fs.CreateOptions{Metadata: metadata})
+func (localFs *local) CreateWithMetadata(ctx context.Context, path string, metadata fs.Metadata) (io.WriteCloser, error) {
+	return localFs.CreateWithOptions(ctx, path, fs.CreateOptions{Metadata: metadata})
 }
 
-func (localFs *local) CreateWithOptions(path string, options fs.CreateOptions) (io.WriteCloser, error) {
+func (localFs *local) CreateWithOptions(ctx context.Context, path string, options fs.CreateOptions) (io.WriteCloser, error) {
 	file, err := os.Create(localFs.fullPath(path))
 	if err != nil {
 		return nil, err
@@ -67,7 +68,7 @@ func (localFs *local) CreateWithOptions(path string, options fs.CreateOptions) (
 
 	// 本地文件系统不处理 ContentType，只处理 Metadata
 	if options.Metadata != nil {
-		if err = localFs.SetMetadata(path, options.Metadata); err != nil {
+		if err = localFs.SetMetadata(ctx, path, options.Metadata); err != nil {
 			file.Close()
 			return nil, err
 		}
@@ -76,26 +77,26 @@ func (localFs *local) CreateWithOptions(path string, options fs.CreateOptions) (
 	return file, nil
 }
 
-func (localFs *local) Open(path string) (io.ReadCloser, error) {
+func (localFs *local) Open(ctx context.Context, path string) (io.ReadCloser, error) {
 	return os.Open(localFs.fullPath(path))
 }
 
-func (localFs *local) OpenFile(path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
+func (localFs *local) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
 	return os.OpenFile(localFs.fullPath(path), flag, perm)
 }
 
-func (localFs *local) Remove(path string) error {
+func (localFs *local) Remove(ctx context.Context, path string) error {
 	return os.Remove(localFs.fullPath(path))
 }
 
-func (localFs *local) Copy(src, dst string) error {
-	sourceFile, err := localFs.Open(src)
+func (localFs *local) Copy(ctx context.Context, src, dst string) error {
+	sourceFile, err := localFs.Open(ctx, src)
 	if err != nil {
 		return err
 	}
 	defer sourceFile.Close()
 
-	destFile, err := localFs.Create(dst)
+	destFile, err := localFs.Create(ctx, dst)
 	if err != nil {
 		return err
 	}
@@ -105,19 +106,19 @@ func (localFs *local) Copy(src, dst string) error {
 	return err
 }
 
-func (localFs *local) Move(src, dst string) error {
+func (localFs *local) Move(ctx context.Context, src, dst string) error {
 	return os.Rename(localFs.fullPath(src), localFs.fullPath(dst))
 }
 
-func (localFs *local) Rename(oldPath, newPath string) error {
+func (localFs *local) Rename(ctx context.Context, oldPath, newPath string) error {
 	return os.Rename(localFs.fullPath(oldPath), localFs.fullPath(newPath))
 }
 
-func (localFs *local) Stat(path string) (fs.FileInfo, error) {
+func (localFs *local) Stat(ctx context.Context, path string) (fs.FileInfo, error) {
 	return os.Stat(localFs.fullPath(path))
 }
 
-func (localFs *local) GetMimeType(path string) (string, error) {
+func (localFs *local) GetMimeType(ctx context.Context, path string) (string, error) {
 	file, err := os.Open(localFs.fullPath(path))
 	if err != nil {
 		return "", err
@@ -135,7 +136,7 @@ func (localFs *local) GetMimeType(path string) (string, error) {
 	return http.DetectContentType(buffer), nil
 }
 
-func (localFs *local) SetMetadata(path string, metadata map[string]interface{}) error {
+func (localFs *local) SetMetadata(ctx context.Context, path string, metadata map[string]interface{}) error {
 	// 本地文件系统只支持修改文件权限和时间戳
 	if mode, ok := metadata["mode"]; ok {
 		if m, ok := mode.(os.FileMode); ok {
@@ -147,7 +148,7 @@ func (localFs *local) SetMetadata(path string, metadata map[string]interface{}) 
 	return nil
 }
 
-func (localFs *local) GetMetadata(path string) (map[string]interface{}, error) {
+func (localFs *local) GetMetadata(ctx context.Context, path string) (map[string]interface{}, error) {
 	info, err := os.Stat(localFs.fullPath(path))
 	if err != nil {
 		return nil, err
@@ -162,7 +163,7 @@ func (localFs *local) GetMetadata(path string) (map[string]interface{}, error) {
 	}, nil
 }
 
-func (localFs *local) Exists(path string) (bool, error) {
+func (localFs *local) Exists(ctx context.Context, path string) (bool, error) {
 	_, err := os.Stat(localFs.fullPath(path))
 	if err == nil {
 		return true, nil
@@ -173,7 +174,7 @@ func (localFs *local) Exists(path string) (bool, error) {
 	return false, err
 }
 
-func (localFs *local) IsDir(path string) (bool, error) {
+func (localFs *local) IsDir(ctx context.Context, path string) (bool, error) {
 	info, err := os.Stat(localFs.fullPath(path))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -184,7 +185,7 @@ func (localFs *local) IsDir(path string) (bool, error) {
 	return info.IsDir(), nil
 }
 
-func (localFs *local) IsFile(path string) (bool, error) {
+func (localFs *local) IsFile(ctx context.Context, path string) (bool, error) {
 	info, err := os.Stat(localFs.fullPath(path))
 	if err != nil {
 		if os.IsNotExist(err) {

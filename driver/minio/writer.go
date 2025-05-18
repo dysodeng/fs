@@ -12,6 +12,7 @@ import (
 
 // minioWriter 实现 io.WriteCloser 接口
 type minioWriter struct {
+	ctx     context.Context
 	client  *minio.Client
 	bucket  string
 	path    string
@@ -19,8 +20,9 @@ type minioWriter struct {
 	options fs.CreateOptions
 }
 
-func newMinioWriter(client *minio.Client, bucket, path string, options fs.CreateOptions) *minioWriter {
+func newMinioWriter(ctx context.Context, client *minio.Client, bucket, path string, options fs.CreateOptions) *minioWriter {
 	return &minioWriter{
+		ctx:     ctx,
 		client:  client,
 		bucket:  bucket,
 		path:    path,
@@ -30,36 +32,45 @@ func newMinioWriter(client *minio.Client, bucket, path string, options fs.Create
 }
 
 func (w *minioWriter) Write(p []byte) (n int, err error) {
-	return w.buffer.Write(p)
+	select {
+	case <-w.ctx.Done():
+		return 0, w.ctx.Err()
+	default:
+		return w.buffer.Write(p)
+	}
 }
 
 func (w *minioWriter) Close() error {
-	opts := minio.PutObjectOptions{}
+	select {
+	case <-w.ctx.Done():
+		return w.ctx.Err()
+	default:
+		opts := minio.PutObjectOptions{}
 
-	// 设置 ContentType
-	if w.options.ContentType != "" {
-		opts.ContentType = w.options.ContentType
-	}
-
-	// 处理metadata
-	if w.options.Metadata != nil {
-		// 将metadata转换为字符串map
-		userMetadata := make(map[string]string)
-		for k, v := range w.options.Metadata {
-			userMetadata[k] = fmt.Sprintf("%v", v)
+		// 设置 ContentType
+		if w.options.ContentType != "" {
+			opts.ContentType = w.options.ContentType
 		}
-		opts.UserMetadata = userMetadata
-	}
 
-	_, err := w.client.PutObject(
-		context.Background(),
-		w.bucket,
-		w.path,
-		bytes.NewReader(w.buffer.Bytes()),
-		int64(w.buffer.Len()),
-		opts,
-	)
-	return err
+		// 处理metadata
+		if w.options.Metadata != nil {
+			userMetadata := make(map[string]string)
+			for k, v := range w.options.Metadata {
+				userMetadata[k] = fmt.Sprintf("%v", v)
+			}
+			opts.UserMetadata = userMetadata
+		}
+
+		_, err := w.client.PutObject(
+			w.ctx,
+			w.bucket,
+			w.path,
+			bytes.NewReader(w.buffer.Bytes()),
+			int64(w.buffer.Len()),
+			opts,
+		)
+		return err
+	}
 }
 
 // minioReadWriter 实现 io.ReadWriteCloser 接口
@@ -68,9 +79,9 @@ type minioReadWriter struct {
 	reader io.ReadCloser
 }
 
-func newMinioReadWriter(client *minio.Client, bucket, path string) *minioReadWriter {
+func newMinioReadWriter(ctx context.Context, client *minio.Client, bucket, path string) *minioReadWriter {
 	return &minioReadWriter{
-		minioWriter: newMinioWriter(client, bucket, path, fs.CreateOptions{}),
+		minioWriter: newMinioWriter(ctx, client, bucket, path, fs.CreateOptions{}),
 	}
 }
 
@@ -78,7 +89,7 @@ func (rw *minioReadWriter) Read(p []byte) (n int, err error) {
 	if rw.reader == nil {
 		var err error
 		rw.reader, err = rw.client.GetObject(
-			context.Background(),
+			rw.ctx,
 			rw.bucket,
 			rw.path,
 			minio.GetObjectOptions{},
@@ -92,7 +103,7 @@ func (rw *minioReadWriter) Read(p []byte) (n int, err error) {
 
 func (rw *minioReadWriter) Close() error {
 	if rw.reader != nil {
-		rw.reader.Close()
+		_ = rw.reader.Close()
 	}
 	return rw.minioWriter.Close()
 }

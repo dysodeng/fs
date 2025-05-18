@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// FileInfo 文件信息
+// FileInfo 文件信息，实现 os.FileInfo 接口
 type FileInfo interface {
 	Name() string
 	Size() int64

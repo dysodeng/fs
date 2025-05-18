@@ -1,6 +1,7 @@
 package examples
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -14,14 +15,16 @@ func Local() {
 	// 创建文件系统实例
 	fs := local.New("./tmp")
 
+	ctx := context.Background()
+
 	// 创建目录
-	err := fs.MakeDir("local", 0755)
+	err := fs.MakeDir(ctx, "local", 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// 创建并写入文件
-	writer, err := fs.Create("local/hello.txt")
+	writer, err := fs.Create(ctx, "local/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -34,7 +37,7 @@ func Local() {
 	writer.Close()
 
 	// 读取文件
-	reader, err := fs.Open("local/hello.txt")
+	reader, err := fs.Open(ctx, "local/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -46,7 +49,7 @@ func Local() {
 	fmt.Printf("文件内容: %s\n", string(data))
 
 	// 使用 OpenFile 以追加模式打开文件
-	file, err := fs.OpenFile("local/hello.txt", os.O_APPEND|os.O_WRONLY, 0644)
+	file, err := fs.OpenFile(ctx, "local/hello.txt", os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,13 +60,13 @@ func Local() {
 	}
 
 	// 复制文件
-	err = fs.Copy("local/hello.txt", "local/hello_copy.txt")
+	err = fs.Copy(ctx, "local/hello.txt", "local/hello_copy.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// 列出目录内容
-	files, err := fs.List("/")
+	files, err := fs.List(ctx, "/")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,7 +76,7 @@ func Local() {
 	}
 
 	// 文件信息
-	info, err := fs.Stat("local/hello.txt")
+	info, err := fs.Stat(ctx, "local/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -82,14 +85,14 @@ func Local() {
 	fmt.Printf("--->文件大小: %d\n", info.Size())
 	fmt.Printf("--->文件权限: %s\n", info.Mode())
 	fmt.Printf("--->文件修改时间: %s\n", info.ModTime().Format(time.DateTime))
-	mimeType, err := fs.GetMimeType("local/hello.txt")
+	mimeType, err := fs.GetMimeType(ctx, "local/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("--->文件MimeType: %s\n", mimeType)
 
 	// 获取文件元数据
-	metadata, err := fs.GetMetadata("local/hello.txt")
+	metadata, err := fs.GetMetadata(ctx, "local/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}

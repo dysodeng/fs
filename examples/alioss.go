@@ -1,6 +1,7 @@
 package examples
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -22,14 +23,19 @@ func AliOss() {
 		log.Fatal(err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer func() {
+		cancel()
+	}()
+
 	// 创建目录
-	err = fs.MakeDir("test", 0755)
+	err = fs.MakeDir(ctx, "test", 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// 创建并写入文件
-	writer, err := fs.Create("test/hello.txt")
+	writer, err := fs.Create(ctx, "test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,7 +48,7 @@ func AliOss() {
 	writer.Close()
 
 	// 读取文件
-	reader, err := fs.Open("test/hello.txt")
+	reader, err := fs.Open(ctx, "test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,13 +60,13 @@ func AliOss() {
 	fmt.Printf("文件内容: %s\n", string(data))
 
 	// 复制文件
-	err = fs.Copy("test/hello.txt", "test/hello_copy.txt")
+	err = fs.Copy(ctx, "test/hello.txt", "test/hello_copy.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// 列出目录内容
-	files, err := fs.List("test")
+	files, err := fs.List(ctx, "test")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,7 +76,7 @@ func AliOss() {
 	}
 
 	// 文件信息
-	info, err := fs.Stat("test/hello.txt")
+	info, err := fs.Stat(ctx, "test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,14 +85,14 @@ func AliOss() {
 	fmt.Printf("--->文件大小: %d\n", info.Size())
 	fmt.Printf("--->文件权限: %s\n", info.Mode())
 	fmt.Printf("--->文件修改时间: %s\n", info.ModTime().Format(time.DateTime))
-	mimeType, err := fs.GetMimeType("test/hello.txt")
+	mimeType, err := fs.GetMimeType(ctx, "test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("--->文件MimeType: %s\n", mimeType)
 
 	// 获取文件元数据
-	metadata, err := fs.GetMetadata("test/hello.txt")
+	metadata, err := fs.GetMetadata(ctx, "test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}

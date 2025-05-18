@@ -1,6 +1,7 @@
 package alioss
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,7 +48,7 @@ func New(config Config) (fs.FileSystem, error) {
 	}, nil
 }
 
-func (o *ossFs) List(path string) ([]fs.FileInfo, error) {
+func (o *ossFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) {
 	var fileInfos []fs.FileInfo
 	prefix := strings.TrimRight(path, "/")
 	if prefix != "" {
@@ -56,7 +57,12 @@ func (o *ossFs) List(path string) ([]fs.FileInfo, error) {
 
 	marker := ""
 	for {
-		lsRes, err := o.bucket.ListObjects(oss.Marker(marker), oss.Prefix(prefix), oss.Delimiter("/"))
+		lsRes, err := o.bucket.ListObjects(
+			oss.Marker(marker),
+			oss.Prefix(prefix),
+			oss.Delimiter("/"),
+			oss.WithContext(ctx),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -82,22 +88,22 @@ func (o *ossFs) List(path string) ([]fs.FileInfo, error) {
 	return fileInfos, nil
 }
 
-func (o *ossFs) MakeDir(path string, perm os.FileMode) error {
+func (o *ossFs) MakeDir(ctx context.Context, path string, perm os.FileMode) error {
 	// OSS目录在写入文件时自动创建
 	return nil
 }
 
-func (o *ossFs) RemoveDir(path string) error {
+func (o *ossFs) RemoveDir(ctx context.Context, path string) error {
 	prefix := strings.TrimRight(path, "/") + "/"
 	marker := ""
 	for {
-		lsRes, err := o.bucket.ListObjects(oss.Marker(marker), oss.Prefix(prefix))
+		lsRes, err := o.bucket.ListObjects(oss.Marker(marker), oss.Prefix(prefix), oss.WithContext(ctx))
 		if err != nil {
 			return err
 		}
 
 		for _, object := range lsRes.Objects {
-			err = o.bucket.DeleteObject(object.Key)
+			err = o.bucket.DeleteObject(object.Key, oss.WithContext(ctx))
 			if err != nil {
 				return err
 			}
@@ -111,58 +117,58 @@ func (o *ossFs) RemoveDir(path string) error {
 	return nil
 }
 
-func (o *ossFs) Create(path string) (io.WriteCloser, error) {
-	return o.CreateWithOptions(path, fs.CreateOptions{})
+func (o *ossFs) Create(ctx context.Context, path string) (io.WriteCloser, error) {
+	return o.CreateWithOptions(ctx, path, fs.CreateOptions{})
 }
 
-func (o *ossFs) CreateWithMetadata(path string, metadata fs.Metadata) (io.WriteCloser, error) {
-	return o.CreateWithOptions(path, fs.CreateOptions{Metadata: metadata})
+func (o *ossFs) CreateWithMetadata(ctx context.Context, path string, metadata fs.Metadata) (io.WriteCloser, error) {
+	return o.CreateWithOptions(ctx, path, fs.CreateOptions{Metadata: metadata})
 }
 
-func (o *ossFs) CreateWithOptions(path string, options fs.CreateOptions) (io.WriteCloser, error) {
-	return newOssWriter(o.bucket, path, options), nil
+func (o *ossFs) CreateWithOptions(ctx context.Context, path string, options fs.CreateOptions) (io.WriteCloser, error) {
+	return newOssWriter(ctx, o.bucket, path, options), nil
 }
 
-func (o *ossFs) Open(path string) (io.ReadCloser, error) {
-	return o.bucket.GetObject(path)
+func (o *ossFs) Open(ctx context.Context, path string) (io.ReadCloser, error) {
+	return o.bucket.GetObject(path, oss.WithContext(ctx))
 }
 
-func (o *ossFs) OpenFile(path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
+func (o *ossFs) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
 	if flag&os.O_RDWR != 0 {
-		return newOssReadWriter(o.bucket, path), nil
+		return newOssReadWriter(ctx, o.bucket, path), nil
 	}
 	if flag&os.O_WRONLY != 0 {
-		return newOssReadWriter(o.bucket, path), nil
+		return newOssReadWriter(ctx, o.bucket, path), nil
 	}
-	reader, err := o.Open(path)
+	reader, err := o.Open(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 	return newOssReadOnlyWrapper(reader), nil
 }
 
-func (o *ossFs) Remove(path string) error {
-	return o.bucket.DeleteObject(path)
+func (o *ossFs) Remove(ctx context.Context, path string) error {
+	return o.bucket.DeleteObject(path, oss.WithContext(ctx))
 }
 
-func (o *ossFs) Copy(src, dst string) error {
-	_, err := o.bucket.CopyObject(src, dst)
+func (o *ossFs) Copy(ctx context.Context, src, dst string) error {
+	_, err := o.bucket.CopyObject(src, dst, oss.WithContext(ctx))
 	return err
 }
 
-func (o *ossFs) Move(src, dst string) error {
-	if err := o.Copy(src, dst); err != nil {
+func (o *ossFs) Move(ctx context.Context, src, dst string) error {
+	if err := o.Copy(ctx, src, dst); err != nil {
 		return err
 	}
-	return o.Remove(src)
+	return o.Remove(ctx, src)
 }
 
-func (o *ossFs) Rename(oldPath, newPath string) error {
-	return o.Move(oldPath, newPath)
+func (o *ossFs) Rename(ctx context.Context, oldPath, newPath string) error {
+	return o.Move(ctx, oldPath, newPath)
 }
 
-func (o *ossFs) Stat(path string) (fs.FileInfo, error) {
-	header, err := o.bucket.GetObjectMeta(path)
+func (o *ossFs) Stat(ctx context.Context, path string) (fs.FileInfo, error) {
+	header, err := o.bucket.GetObjectMeta(path, oss.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -177,8 +183,8 @@ func (o *ossFs) Stat(path string) (fs.FileInfo, error) {
 	}), nil
 }
 
-func (o *ossFs) GetMimeType(path string) (string, error) {
-	header, err := o.bucket.GetObjectDetailedMeta(path)
+func (o *ossFs) GetMimeType(ctx context.Context, path string) (string, error) {
+	header, err := o.bucket.GetObjectDetailedMeta(path, oss.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}
@@ -189,11 +195,13 @@ func (o *ossFs) GetMimeType(path string) (string, error) {
 	}
 
 	// 如果对象没有 Content-Type，则读取文件内容进行检测
-	obj, err := o.Open(path)
+	obj, err := o.Open(ctx, path)
 	if err != nil {
 		return "", err
 	}
-	defer obj.Close()
+	defer func() {
+		_ = obj.Close()
+	}()
 
 	buffer := make([]byte, 512)
 	_, err = obj.Read(buffer)
@@ -204,8 +212,10 @@ func (o *ossFs) GetMimeType(path string) (string, error) {
 	return http.DetectContentType(buffer), nil
 }
 
-func (o *ossFs) SetMetadata(path string, metadata map[string]interface{}) error {
-	var opts []oss.Option
+func (o *ossFs) SetMetadata(ctx context.Context, path string, metadata map[string]interface{}) error {
+	opts := []oss.Option{
+		oss.WithContext(ctx),
+	}
 	for k, v := range metadata {
 		opts = append(opts, oss.Meta(k, fmt.Sprintf("%v", v)))
 	}
@@ -215,8 +225,8 @@ func (o *ossFs) SetMetadata(path string, metadata map[string]interface{}) error 
 	return err
 }
 
-func (o *ossFs) GetMetadata(path string) (map[string]interface{}, error) {
-	header, err := o.bucket.GetObjectMeta(path)
+func (o *ossFs) GetMetadata(ctx context.Context, path string) (map[string]interface{}, error) {
+	header, err := o.bucket.GetObjectMeta(path, oss.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -231,8 +241,8 @@ func (o *ossFs) GetMetadata(path string) (map[string]interface{}, error) {
 	return metadata, nil
 }
 
-func (o *ossFs) Exists(path string) (bool, error) {
-	exist, err := o.bucket.IsObjectExist(path)
+func (o *ossFs) Exists(ctx context.Context, path string) (bool, error) {
+	exist, err := o.bucket.IsObjectExist(path, oss.WithContext(ctx))
 	if err != nil {
 		return false, err
 	}
@@ -241,20 +251,20 @@ func (o *ossFs) Exists(path string) (bool, error) {
 	}
 
 	// 如果不是文件，检查是否为目录
-	return o.IsDir(path)
+	return o.IsDir(ctx, path)
 }
 
-func (o *ossFs) IsDir(path string) (bool, error) {
+func (o *ossFs) IsDir(ctx context.Context, path string) (bool, error) {
 	prefix := strings.TrimRight(path, "/") + "/"
-	lsRes, err := o.bucket.ListObjects(oss.Prefix(prefix), oss.MaxKeys(1))
+	lsRes, err := o.bucket.ListObjects(oss.Prefix(prefix), oss.MaxKeys(1), oss.WithContext(ctx))
 	if err != nil {
 		return false, err
 	}
 	return len(lsRes.Objects) > 0 || len(lsRes.CommonPrefixes) > 0, nil
 }
 
-func (o *ossFs) IsFile(path string) (bool, error) {
-	exist, err := o.bucket.IsObjectExist(path)
+func (o *ossFs) IsFile(ctx context.Context, path string) (bool, error) {
+	exist, err := o.bucket.IsObjectExist(path, oss.WithContext(ctx))
 	if err != nil {
 		return false, err
 	}
