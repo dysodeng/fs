@@ -82,6 +82,11 @@ func Local() {
 	fmt.Printf("--->文件大小: %d\n", info.Size())
 	fmt.Printf("--->文件权限: %s\n", info.Mode())
 	fmt.Printf("--->文件修改时间: %s\n", info.ModTime().Format(time.DateTime))
+	mimeType, err := fs.GetMimeType("local/hello.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("--->文件MimeType: %s\n", mimeType)
 
 	// 获取文件元数据
 	metadata, err := fs.GetMetadata("local/hello.txt")

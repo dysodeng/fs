@@ -3,6 +3,7 @@ package alioss
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -174,6 +175,33 @@ func (o *ossFs) Stat(path string) (fs.FileInfo, error) {
 		Size:         fileSize,
 		LastModified: lastModified,
 	}), nil
+}
+
+func (o *ossFs) GetMimeType(path string) (string, error) {
+	header, err := o.bucket.GetObjectDetailedMeta(path)
+	if err != nil {
+		return "", err
+	}
+
+	contentType := header.Get("Content-Type")
+	if contentType != "" {
+		return contentType, nil
+	}
+
+	// 如果对象没有 Content-Type，则读取文件内容进行检测
+	obj, err := o.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer obj.Close()
+
+	buffer := make([]byte, 512)
+	_, err = obj.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	return http.DetectContentType(buffer), nil
 }
 
 func (o *ossFs) SetMetadata(path string, metadata map[string]interface{}) error {

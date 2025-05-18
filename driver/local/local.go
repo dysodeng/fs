@@ -2,6 +2,7 @@ package local
 
 import (
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -114,6 +115,24 @@ func (localFs *local) Rename(oldPath, newPath string) error {
 
 func (localFs *local) Stat(path string) (fs.FileInfo, error) {
 	return os.Stat(localFs.fullPath(path))
+}
+
+func (localFs *local) GetMimeType(path string) (string, error) {
+	file, err := os.Open(localFs.fullPath(path))
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	// 读取文件前512字节用于检测文件类型
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	// 使用 http.DetectContentType 检测 MIME 类型
+	return http.DetectContentType(buffer), nil
 }
 
 func (localFs *local) SetMetadata(path string, metadata map[string]interface{}) error {

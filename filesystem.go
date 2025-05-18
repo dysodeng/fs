@@ -35,6 +35,8 @@ type FileSystem interface {
 
 	// Stat 获取文件/目录信息
 	Stat(path string) (FileInfo, error)
+	// GetMimeType 获取文件的 MIME 类型
+	GetMimeType(path string) (string, error)
 	// SetMetadata 设置元数据
 	SetMetadata(path string, metadata map[string]interface{}) error
 	// GetMetadata 获取元数据

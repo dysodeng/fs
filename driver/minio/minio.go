@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -170,6 +171,32 @@ func (m *minioFs) Stat(path string) (fs.FileInfo, error) {
 		return nil, err
 	}
 	return newMinioFileInfo(info), nil
+}
+
+func (m *minioFs) GetMimeType(path string) (string, error) {
+	stat, err := m.client.StatObject(context.Background(), m.config.BucketName, path, minio.StatObjectOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	if stat.ContentType != "" {
+		return stat.ContentType, nil
+	}
+
+	// 如果对象没有 ContentType，则读取文件内容进行检测
+	obj, err := m.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer obj.Close()
+
+	buffer := make([]byte, 512)
+	_, err = obj.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	return http.DetectContentType(buffer), nil
 }
 
 func (m *minioFs) SetMetadata(path string, metadata map[string]interface{}) error {

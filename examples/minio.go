@@ -11,7 +11,6 @@ import (
 )
 
 func MinIO() {
-	// MinIO配置
 	config := minio.Config{
 		Endpoint:        "play.min.io", // MinIO服务地址
 		AccessKeyID:     "your-access-key",
@@ -87,6 +86,11 @@ func MinIO() {
 	fmt.Printf("--->文件大小: %d\n", info.Size())
 	fmt.Printf("--->文件权限: %s\n", info.Mode())
 	fmt.Printf("--->文件修改时间: %s\n", info.ModTime().Format(time.DateTime))
+	mimeType, err := fs.GetMimeType("test/hello.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("--->文件MimeType: %s\n", mimeType)
 
 	// 获取文件元数据
 	metadata, err := fs.GetMetadata("test/hello.txt")

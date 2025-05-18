@@ -10,17 +10,11 @@ import (
 )
 
 func AliOss() {
-	// cnf := alioss.Config{
-	// 	Endpoint:        "oss-cn-hangzhou.aliyuncs.com",
-	// 	AccessKeyID:     "your-access-key-id",
-	// 	SecretAccessKey: "your-access-key-secret",
-	// 	BucketName:      "your-bucket-name",
-	// }
 	cnf := alioss.Config{
-		Endpoint:        "oss-cn-huangzhou.aliyuncs.com",
+		Endpoint:        "oss-cn-hangzhou.aliyuncs.com",
 		AccessKeyID:     "your-access-key-id",
 		SecretAccessKey: "your-access-key-secret",
-		BucketName:      "you-bucket-name",
+		BucketName:      "your-bucket-name",
 	}
 	// 创建文件系统实例
 	fs, err := alioss.New(cnf)
@@ -85,6 +79,11 @@ func AliOss() {
 	fmt.Printf("--->文件大小: %d\n", info.Size())
 	fmt.Printf("--->文件权限: %s\n", info.Mode())
 	fmt.Printf("--->文件修改时间: %s\n", info.ModTime().Format(time.DateTime))
+	mimeType, err := fs.GetMimeType("test/hello.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("--->文件MimeType: %s\n", mimeType)
 
 	// 获取文件元数据
 	metadata, err := fs.GetMetadata("test/hello.txt")

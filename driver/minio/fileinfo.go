@@ -29,7 +29,7 @@ func (f *minioFileInfo) Mode() os.FileMode {
 }
 
 func (f *minioFileInfo) ModTime() time.Time {
-	return f.info.LastModified
+	return f.info.LastModified.Local()
 }
 
 func (f *minioFileInfo) IsDir() bool {
