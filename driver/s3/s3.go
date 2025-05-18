@@ -23,7 +23,7 @@ type Config struct {
 	AccessKeyID     string // AccessKey
 	SecretAccessKey string // SecretKey
 	BucketName      string // 存储桶名称
-	UsePathStyle    bool
+	UsePathStyle    bool   // 是否使用路径样式访问
 }
 
 // s3Fs S3文件系统

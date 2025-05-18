@@ -190,10 +190,11 @@ import (
 func main() {
     config := s3.Config{
         Region:          "us-east-1",
-        Endpoint:        "https://s3.amazonaws.com", // 可选
+        Endpoint:        "https://s3.amazonaws.com", // S3 服务地址（可选，用于兼容其他 S3 协议的存储服务）
         AccessKeyID:     "your-access-key",
         SecretAccessKey: "your-secret-key",
         BucketName:      "your-bucket",
+        UsePathStyle:    false,                      // 是否使用路径样式访问
     }
     
     fs, err := s3.New(config)
