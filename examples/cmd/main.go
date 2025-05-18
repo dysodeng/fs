@@ -23,5 +23,7 @@ func main() {
 		examples.HwObs()
 	case "tx_cos":
 		examples.TxCos()
+	case "s3":
+		examples.S3()
 	}
 }
