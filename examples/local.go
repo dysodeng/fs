@@ -2,15 +2,21 @@ package main
 
 import (
 	"fmt"
-	"github.com/dysodeng/fs/driver/local"
 	"io"
 	"log"
 	"os"
+
+	"github.com/dysodeng/fs/driver/local"
+	"go.uber.org/zap"
 )
 
 func main() {
 	// 创建文件系统实例
 	fs := local.New("./tmp")
+
+	// 设置日志
+	logger, _ := zap.NewDevelopment()
+	fs.SetLogger(logger)
 
 	// 创建目录
 	err := fs.MakeDir("local", 0755)
@@ -50,6 +56,12 @@ func main() {
 	}
 	_, err = file.Write([]byte("\n追加的内容"))
 	file.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 复制文件
+	err = fs.Copy("local/hello.txt", "local/hello_copy.txt")
 	if err != nil {
 		log.Fatal(err)
 	}

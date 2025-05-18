@@ -6,16 +6,20 @@ import (
 	"path/filepath"
 
 	"github.com/dysodeng/fs"
+	"go.uber.org/zap"
 )
 
 // local 本地文件系统
 type local struct {
 	rootPath string
+	logger   *zap.Logger
 }
 
 func New(rootPath string) fs.FileSystem {
+	logger, _ := zap.NewProduction()
 	return &local{
 		rootPath: rootPath,
+		logger:   logger,
 	}
 }
 
@@ -24,11 +28,17 @@ func (localFs *local) fullPath(path string) string {
 	return filepath.Join(localFs.rootPath, path)
 }
 
+// SetLogger 设置日志实例
+func (localFs *local) SetLogger(logger *zap.Logger) {
+	localFs.logger = logger
+}
+
 // List 列出目录内容
 func (localFs *local) List(path string) ([]fs.FileInfo, error) {
 	fullPath := localFs.fullPath(path)
 	entries, err := os.ReadDir(fullPath)
 	if err != nil {
+		localFs.logger.Error("List error", zap.Error(err))
 		return nil, err
 	}
 
@@ -36,6 +46,7 @@ func (localFs *local) List(path string) ([]fs.FileInfo, error) {
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
+			localFs.logger.Error("get file info error", zap.Error(err))
 			continue
 		}
 		files = append(files, info)
@@ -77,12 +88,14 @@ func (localFs *local) Remove(path string) error {
 func (localFs *local) Copy(src, dst string) error {
 	sourceFile, err := localFs.Open(src)
 	if err != nil {
+		localFs.logger.Error("Unable to open source file", zap.Error(err))
 		return err
 	}
 	defer sourceFile.Close()
 
 	destFile, err := localFs.Create(dst)
 	if err != nil {
+		localFs.logger.Error("Unable to create destination file", zap.Error(err))
 		return err
 	}
 	defer destFile.Close()

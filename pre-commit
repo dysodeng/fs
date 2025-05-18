@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# 获取所有待提交的 .go 文件
+files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
+
+PASS=true
+
+if [[ -n "$files" ]]; then
+    # 格式化代码并优化导入
+    echo "Running goimports..."
+    for file in $files; do
+        # 检查 goimports 是否安装
+        if ! command -v goimports &> /dev/null; then
+            echo "goimports not found, installing..."
+            go install golang.org/x/tools/cmd/goimports@latest
+        fi
+
+        goimports -w -v "$file"
+        if [ $? -ne 0 ]; then
+            echo "goimports failed on file $file"
+            PASS=false
+            break
+        fi
+
+        # 如果当前文件没有被格式化，就格式化它
+        UN_FORMATTED=$(gofmt -l "$file")
+        if [ "$UN_FORMATTED" != "" ];then
+            gofmt -w "$PWD"/"$UN_FORMATTED"
+            # shellcheck disable=SC2181
+            if [ $? != 0 ]; then
+                printf "gofmt error \n"
+                PASS=false
+            fi
+        fi
+
+        git add "$file"
+    done
+
+    # 运行 go vet
+    echo "Running go vet..."
+    go vet ./...
+    if [ $? -ne 0 ]; then
+        echo "Go vet failed"
+        PASS=false
+        break
+    fi
+
+    # 检测隐患变量
+    # 需要安装：go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+    # shellcheck disable=SC2046
+    echo "Running shadow..."
+    go vet -vettool=$(which shadow)
+    # shellcheck disable=SC2181
+    if [ $? != 0 ]; then
+        printf "shadow error \n"
+        PASS=false
+    fi
+
+    # 运行 golangci-lint
+    echo "Running golangci-lint..."
+    golangci-lint run --issues-exit-code=0  # 添加此参数使警告不会导致命令失败
+    if [ $? -ne 0 ]; then
+        echo "Golangci-lint encountered errors (warnings are allowed)"
+        PASS=false
+        break
+    fi
+fi
+
+if ! $PASS; then
+    printf "\033[31m commit failed \033[0m\n"
+    exit 1
+else
+    printf "\033[32m commit successfully \033[0m\n"
+fi
+
+exit 0

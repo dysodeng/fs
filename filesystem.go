@@ -3,10 +3,15 @@ package fs
 import (
 	"io"
 	"os"
+
+	"go.uber.org/zap"
 )
 
 // FileSystem 文件系统接口
 type FileSystem interface {
+	// SetLogger 设置日志实例
+	SetLogger(*zap.Logger)
+
 	// List 列出目录内容
 	List(path string) ([]FileInfo, error)
 	// MakeDir 创建目录
