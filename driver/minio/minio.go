@@ -233,13 +233,15 @@ func (m *minioFs) IsDir(path string) (bool, error) {
 		MaxKeys:   1,
 	}
 
-	for object := range m.client.ListObjects(ctx, m.config.BucketName, opts) {
-		if object.Err != nil {
-			return false, object.Err
-		}
-		return true, nil
+	objectChan := m.client.ListObjects(ctx, m.config.BucketName, opts)
+	object, ok := <-objectChan
+	if !ok {
+		return false, nil
 	}
-	return false, nil
+	if object.Err != nil {
+		return false, object.Err
+	}
+	return true, nil
 }
 
 func (m *minioFs) IsFile(path string) (bool, error) {
