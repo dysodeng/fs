@@ -4,6 +4,7 @@ go 1.24.1
 
 require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
+	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.25.4+incompatible
 	github.com/minio/minio-go/v7 v7.0.91
 )
 

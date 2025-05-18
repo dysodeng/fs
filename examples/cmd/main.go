@@ -19,5 +19,7 @@ func main() {
 		examples.MinIO()
 	case "ali_oss":
 		examples.AliOss()
+	case "hw_obs":
+		examples.HwObs()
 	}
 }

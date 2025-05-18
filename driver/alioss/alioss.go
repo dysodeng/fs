@@ -221,8 +221,12 @@ func (o *ossFs) SetMetadata(ctx context.Context, path string, metadata map[strin
 	}
 
 	// OSS中需要通过复制对象来更新元数据
-	_, err := o.bucket.CopyObject(path, path, opts...)
-	return err
+	_, err := o.bucket.CopyObject(path, path+"_tmp", opts...)
+	if err != nil {
+		return err
+	}
+
+	return o.Move(ctx, path+"_tmp", path)
 }
 
 func (o *ossFs) GetMetadata(ctx context.Context, path string) (map[string]interface{}, error) {
