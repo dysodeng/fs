@@ -2,7 +2,10 @@ module github.com/dysodeng/fs
 
 go 1.24.1
 
-require github.com/minio/minio-go/v7 v7.0.91
+require (
+	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
+	github.com/minio/minio-go/v7 v7.0.91
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -20,5 +23,7 @@ require (
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/time v0.11.0 // indirect
+	gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

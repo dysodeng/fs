@@ -17,5 +17,7 @@ func main() {
 		examples.Local()
 	case "minio":
 		examples.MinIO()
+	case "ali_oss":
+		examples.AliOss()
 	}
 }

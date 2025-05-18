@@ -4,28 +4,42 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"time"
 
-	"github.com/dysodeng/fs/driver/local"
+	"github.com/dysodeng/fs/driver/alioss"
 )
 
-func Local() {
+func AliOss() {
+	// cnf := alioss.Config{
+	// 	Endpoint:        "oss-cn-hangzhou.aliyuncs.com",
+	// 	AccessKeyID:     "your-access-key-id",
+	// 	SecretAccessKey: "your-access-key-secret",
+	// 	BucketName:      "your-bucket-name",
+	// }
+	cnf := alioss.Config{
+		Endpoint:        "oss-cn-huangzhou.aliyuncs.com",
+		AccessKeyID:     "your-access-key-id",
+		SecretAccessKey: "your-access-key-secret",
+		BucketName:      "you-bucket-name",
+	}
 	// 创建文件系统实例
-	fs := local.New("./tmp")
+	fs, err := alioss.New(cnf)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 创建目录
-	err := fs.MakeDir("local", 0755)
+	err = fs.MakeDir("test", 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// 创建并写入文件
-	writer, err := fs.Create("local/hello.txt")
+	writer, err := fs.Create("test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
-	content := []byte("Hello, Local File System!")
+	content := []byte("Hello, OSS File System!")
 	_, err = writer.Write(content)
 	if err != nil {
 		writer.Close()
@@ -34,7 +48,7 @@ func Local() {
 	writer.Close()
 
 	// 读取文件
-	reader, err := fs.Open("local/hello.txt")
+	reader, err := fs.Open("test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,25 +59,14 @@ func Local() {
 	}
 	fmt.Printf("文件内容: %s\n", string(data))
 
-	// 使用 OpenFile 以追加模式打开文件
-	file, err := fs.OpenFile("local/hello.txt", os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = file.Write([]byte("\n追加的内容"))
-	file.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// 复制文件
-	err = fs.Copy("local/hello.txt", "local/hello_copy.txt")
+	err = fs.Copy("test/hello.txt", "test/hello_copy.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// 列出目录内容
-	files, err := fs.List("/")
+	files, err := fs.List("test")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,7 +76,7 @@ func Local() {
 	}
 
 	// 文件信息
-	info, err := fs.Stat("local/hello.txt")
+	info, err := fs.Stat("test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,7 +87,7 @@ func Local() {
 	fmt.Printf("--->文件修改时间: %s\n", info.ModTime().Format(time.DateTime))
 
 	// 获取文件元数据
-	metadata, err := fs.GetMetadata("local/hello.txt")
+	metadata, err := fs.GetMetadata("test/hello.txt")
 	if err != nil {
 		log.Fatal(err)
 	}

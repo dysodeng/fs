@@ -61,12 +61,6 @@ func MinIO() {
 	}
 	fmt.Printf("文件内容: %s\n", string(data))
 
-	info, err := fs.Stat("test/hello.txt")
-	if err != nil {
-		log.Fatal("获取文件信息错误：" + err.Error())
-	}
-	fmt.Printf("文件信息: %+v\n", info)
-
 	// 复制文件
 	err = fs.Copy("test/hello.txt", "test/hello_copy.txt")
 	if err != nil {
@@ -82,6 +76,17 @@ func MinIO() {
 	for _, file := range files {
 		fmt.Printf("- %s\n", file.Name())
 	}
+
+	// 文件信息
+	info, err := fs.Stat("test/hello.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("文件信息:")
+	fmt.Printf("--->文件名: %s\n", info.Name())
+	fmt.Printf("--->文件大小: %d\n", info.Size())
+	fmt.Printf("--->文件权限: %s\n", info.Mode())
+	fmt.Printf("--->文件修改时间: %s\n", info.ModTime().Format(time.DateTime))
 
 	// 获取文件元数据
 	metadata, err := fs.GetMetadata("test/hello.txt")
