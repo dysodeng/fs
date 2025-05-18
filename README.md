@@ -6,7 +6,7 @@
 
 Go FileSystem 是一个统一的文件系统接口实现，支持本地文件系统和多种云存储服务。它提供了一致的 API 来操作不同的存储系统，使得在不同存储系统之间切换变得简单。
 
-## 特性
+## Features
 
 - 统一的文件系统接口
 - 支持多种存储驱动
@@ -21,13 +21,13 @@ Go FileSystem 是一个统一的文件系统接口实现，支持本地文件系
   - 文件元数据的读写
   - MIME 类型检测
 
-## 安装
+## Installation
 
 ```bash
 go get github.com/dysodeng/fs
 ```
 
-## 使用
+## Usage
 ### 本地文件系统
 ```go
 package main
@@ -38,11 +38,13 @@ import (
 )
 
 func main() {
-    // 创建文件系统实例
     fs := local.New("./storage")
     
     // 写入文件
-    writer, _ := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(context.Background(), "test.txt")
+    if err != nil {
+        panic(err)
+    }
     writer.Write([]byte("Hello, World!"))
     writer.Close()
 }
@@ -65,12 +67,14 @@ func main() {
         BucketName:     "your-bucket",
         Location:       "us-east-1",
     }
-    
-    // 创建文件系统实例
+	
     fs, _ := minio.New(config)
     
     // 写入文件
-    writer, _ := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(context.Background(), "test.txt")
+    if err != nil {
+        panic(err)
+    }
     writer.Write([]byte("Hello, MinIO!"))
     writer.Close()
 }
@@ -92,12 +96,17 @@ func main() {
         SecretAccessKey: "your-secret-key",
         BucketName:     "your-bucket",
     }
-    
-    // 创建文件系统实例
-    fs, _ := alioss.New(config)
+	
+    fs, err := alioss.New(config)
+    if err != nil {
+        panic(err)
+    }
     
     // 写入文件
-    writer, _ := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(context.Background(), "test.txt")
+    if err != nil {
+        panic(err)
+    }
     writer.Write([]byte("Hello, OSS!"))
     writer.Close()
 }
@@ -119,12 +128,17 @@ func main() {
         SecretAccessKey: "your-secret-key",
         BucketName:     "your-bucket",
     }
-    
-    // 创建文件系统实例
-    fs, _ := hwobs.New(config)
+	
+    fs, err := hwobs.New(config)
+    if err != nil {
+        panic(err)
+    }
     
     // 写入文件
-    writer, _ := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(context.Background(), "test.txt")
+    if err != nil {
+        panic(err)
+    }
     writer.Write([]byte("Hello, OBS!"))
     writer.Close()
 }
@@ -145,12 +159,17 @@ func main() {
         SecretID:       "your-secret-id",
         SecretKey:      "your-secret-key",
     }
-    
-    // 创建文件系统实例
-    fs, _ := txcos.New(config)
+	
+    fs, err := txcos.New(config)
+    if err != nil {
+        panic(err)
+    }
     
     // 写入文件
-    writer, _ := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(context.Background(), "test.txt")
+    if err != nil {
+        panic(err)
+    }
     writer.Write([]byte("Hello, COS!"))
     writer.Close()
 }
