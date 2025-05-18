@@ -37,8 +37,8 @@ func TxCos() {
 	writer, err := fs.CreateWithOptions(ctx, "test/hello.txt", f.CreateOptions{
 		ContentType: "text/plain",
 		Metadata: map[string]interface{}{
-			"Author": "dysodeng",
-			"Time":   time.Now().Format(time.DateTime),
+			"author": "dysodeng",
+			"time":   time.Now().Format(time.DateTime),
 		},
 	})
 	if err != nil {

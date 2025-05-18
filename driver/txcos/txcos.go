@@ -225,8 +225,8 @@ func (c *cosFs) SetMetadata(ctx context.Context, path string, metadata map[strin
 		},
 	}
 	for k, v := range metadata {
-		opt.XCosMetaXXX = &http.Header{}
-		opt.XCosMetaXXX.Set(k, fmt.Sprintf("%v", v))
+		opt.ObjectCopyHeaderOptions.XCosMetaXXX = &http.Header{}
+		opt.ObjectCopyHeaderOptions.XCosMetaXXX.Set(fmt.Sprintf("x-cos-meta-%s", k), fmt.Sprintf("%v", v))
 	}
 
 	sourceURL := c.config.BucketURL + "/" + path
@@ -252,7 +252,7 @@ func (c *cosFs) GetMetadata(ctx context.Context, path string) (map[string]interf
 				metadata[key] = v[0]
 			}
 		}
-		if strings.HasPrefix(k, "X-Cos-") {
+		if strings.HasPrefix(k, "X-Cos-") && !strings.HasPrefix(k, "X-Cos-Meta-") {
 			key := strings.TrimPrefix(k, "X-Cos-")
 			if len(v) > 0 {
 				metadata[key] = v[0]
