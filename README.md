@@ -68,7 +68,10 @@ func main() {
         Location:       "us-east-1",
     }
 	
-    fs, _ := minio.New(config)
+    fs, err := minio.New(config)
+    if err != nil {
+        panic(err)
+    }
     
     // 写入文件
     writer, err := fs.Create(context.Background(), "test.txt")
