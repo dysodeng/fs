@@ -1,4 +1,4 @@
-package main
+package examples
 
 import (
 	"fmt"
@@ -7,16 +7,11 @@ import (
 	"os"
 
 	"github.com/dysodeng/fs/driver/local"
-	"go.uber.org/zap"
 )
 
-func main() {
+func Local() {
 	// 创建文件系统实例
 	fs := local.New("./tmp")
-
-	// 设置日志
-	logger, _ := zap.NewDevelopment()
-	fs.SetLogger(logger)
 
 	// 创建目录
 	err := fs.MakeDir("local", 0755)
