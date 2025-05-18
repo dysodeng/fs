@@ -6,6 +6,7 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.25.4+incompatible
 	github.com/minio/minio-go/v7 v7.0.91
+	github.com/tencentyun/cos-go-sdk-v5 v0.7.65
 )
 
 require (
@@ -22,9 +23,7 @@ require (
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/mozillazg/go-httpheader v0.2.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
-	github.com/tencentyun/cos-go-sdk-v5 v0.7.65 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
