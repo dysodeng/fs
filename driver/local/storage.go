@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// MultipartStorage 本地文件驱动分片上传状态存储器
 type MultipartStorage interface {
 	// Save 保存分片上传状态
 	Save(upload *MultipartUpload) error

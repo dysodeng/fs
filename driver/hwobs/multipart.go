@@ -62,6 +62,47 @@ func (o *obsFs) AbortMultipartUpload(ctx context.Context, path string, uploadID 
 	}
 
 	_, err := o.client.AbortMultipartUpload(input)
-
 	return err
+}
+
+func (o *obsFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
+	input := &obs.ListMultipartUploadsInput{
+		Bucket: o.config.BucketName,
+	}
+	output, err := o.client.ListMultipartUploads(input)
+	if err != nil {
+		return nil, err
+	}
+
+	uploads := make([]fs.MultipartUploadInfo, 0, len(output.Uploads))
+	for _, upload := range output.Uploads {
+		uploads = append(uploads, fs.MultipartUploadInfo{
+			UploadID:   upload.UploadId,
+			Path:       upload.Key,
+			CreateTime: upload.Initiated,
+		})
+	}
+	return uploads, nil
+}
+
+func (o *obsFs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+	input := &obs.ListPartsInput{
+		Bucket:   o.config.BucketName,
+		Key:      path,
+		UploadId: uploadID,
+	}
+	output, err := o.client.ListParts(input)
+	if err != nil {
+		return nil, err
+	}
+
+	parts := make([]fs.MultipartPart, 0, len(output.Parts))
+	for _, part := range output.Parts {
+		parts = append(parts, fs.MultipartPart{
+			PartNumber: part.PartNumber,
+			ETag:       part.ETag,
+			Size:       part.Size,
+		})
+	}
+	return parts, nil
 }

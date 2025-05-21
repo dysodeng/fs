@@ -64,3 +64,47 @@ func (s *s3Fs) AbortMultipartUpload(ctx context.Context, path string, uploadID s
 	_, err := s.client.AbortMultipartUpload(ctx, input)
 	return err
 }
+
+func (s *s3Fs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
+	input := &s3.ListMultipartUploadsInput{
+		Bucket: aws.String(s.config.BucketName),
+	}
+
+	result, err := s.client.ListMultipartUploads(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	uploads := make([]fs.MultipartUploadInfo, len(result.Uploads))
+	for i, upload := range result.Uploads {
+		uploads[i] = fs.MultipartUploadInfo{
+			UploadID:   *upload.UploadId,
+			Path:       *upload.Key,
+			CreateTime: *upload.Initiated,
+		}
+	}
+	return uploads, nil
+}
+
+func (s *s3Fs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+	input := &s3.ListPartsInput{
+		Bucket:   aws.String(s.config.BucketName),
+		Key:      aws.String(path),
+		UploadId: aws.String(uploadID),
+	}
+
+	result, err := s.client.ListParts(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	parts := make([]fs.MultipartPart, len(result.Parts))
+	for i, part := range result.Parts {
+		parts[i] = fs.MultipartPart{
+			PartNumber: int(*part.PartNumber),
+			ETag:       *part.ETag,
+			Size:       *part.Size,
+		}
+	}
+	return parts, nil
+}

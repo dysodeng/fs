@@ -3,6 +3,7 @@ package txcos
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/dysodeng/fs"
 	"github.com/tencentyun/cos-go-sdk-v5"
@@ -41,4 +42,41 @@ func (c *cosFs) CompleteMultipartUpload(ctx context.Context, path string, upload
 func (c *cosFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string) error {
 	_, err := c.client.Object.AbortMultipartUpload(ctx, path, uploadID)
 	return err
+}
+
+func (c *cosFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
+	opt := &cos.ListMultipartUploadsOptions{}
+	v, _, err := c.client.Bucket.ListMultipartUploads(ctx, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]fs.MultipartUploadInfo, len(v.Uploads))
+	for i, upload := range v.Uploads {
+		createTime, _ := time.Parse(time.RFC3339, upload.Initiated)
+		result[i] = fs.MultipartUploadInfo{
+			UploadID:   upload.UploadID,
+			Path:       upload.Key,
+			CreateTime: createTime,
+		}
+	}
+	return result, nil
+}
+
+func (c *cosFs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+	opt := &cos.ObjectListPartsOptions{}
+	v, _, err := c.client.Object.ListParts(ctx, path, uploadID, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	parts := make([]fs.MultipartPart, len(v.Parts))
+	for i, part := range v.Parts {
+		parts[i] = fs.MultipartPart{
+			PartNumber: part.PartNumber,
+			ETag:       part.ETag,
+			Size:       part.Size,
+		}
+	}
+	return parts, nil
 }

@@ -10,21 +10,21 @@ import (
 )
 
 func (o *ossFs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
-	initMultipartUpload, err := o.bucket.InitiateMultipartUpload(path, oss.WithContext(ctx))
+	initMultipartUploadResult, err := o.bucket.InitiateMultipartUpload(path, oss.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}
-	return initMultipartUpload.UploadID, nil
+	return initMultipartUploadResult.UploadID, nil
 }
 
 func (o *ossFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader) (string, error) {
-	initMultipartUpload := oss.InitiateMultipartUploadResult{
-		UploadID: uploadID,
+	initMultipartUploadResult := oss.InitiateMultipartUploadResult{
 		Key:      path,
+		UploadID: uploadID,
 		Bucket:   o.bucket.BucketName,
 	}
 
-	// 获取reader的大小
+	// 获取数据大小
 	var partSize int64
 	if seeker, ok := data.(io.Seeker); ok {
 		size, err := seeker.Seek(0, io.SeekEnd)
@@ -47,7 +47,7 @@ func (o *ossFs) UploadPart(ctx context.Context, path string, uploadID string, pa
 		partSize = size
 	}
 
-	part, err := o.bucket.UploadPart(initMultipartUpload, data, partSize, partNumber, oss.WithContext(ctx))
+	part, err := o.bucket.UploadPart(initMultipartUploadResult, data, partSize, partNumber, oss.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}
@@ -56,9 +56,9 @@ func (o *ossFs) UploadPart(ctx context.Context, path string, uploadID string, pa
 }
 
 func (o *ossFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart) error {
-	initMultipartUpload := oss.InitiateMultipartUploadResult{
-		UploadID: uploadID,
+	initMultipartUploadResult := oss.InitiateMultipartUploadResult{
 		Key:      path,
+		UploadID: uploadID,
 		Bucket:   o.bucket.BucketName,
 	}
 	ossParts := make([]oss.UploadPart, len(parts))
@@ -68,15 +68,56 @@ func (o *ossFs) CompleteMultipartUpload(ctx context.Context, path string, upload
 			ETag:       part.ETag,
 		}
 	}
-	_, err := o.bucket.CompleteMultipartUpload(initMultipartUpload, ossParts, oss.WithContext(ctx))
+	_, err := o.bucket.CompleteMultipartUpload(initMultipartUploadResult, ossParts, oss.WithContext(ctx))
 	return err
 }
 
 func (o *ossFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string) error {
-	initMultipartUpload := oss.InitiateMultipartUploadResult{
-		UploadID: uploadID,
+	initMultipartUploadResult := oss.InitiateMultipartUploadResult{
 		Key:      path,
+		UploadID: uploadID,
 		Bucket:   o.bucket.BucketName,
 	}
-	return o.bucket.AbortMultipartUpload(initMultipartUpload, oss.WithContext(ctx))
+	return o.bucket.AbortMultipartUpload(initMultipartUploadResult, oss.WithContext(ctx))
+}
+
+func (o *ossFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
+	initMultipartUploadResult, err := o.bucket.ListMultipartUploads(oss.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	uploads := make([]fs.MultipartUploadInfo, 0, len(initMultipartUploadResult.Uploads))
+	for _, upload := range initMultipartUploadResult.Uploads {
+		uploads = append(uploads, fs.MultipartUploadInfo{
+			UploadID:   upload.UploadID,
+			Path:       upload.Key,
+			CreateTime: upload.Initiated,
+		})
+	}
+	return uploads, nil
+}
+
+func (o *ossFs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+	initMultipartUploadResult := oss.InitiateMultipartUploadResult{
+		Key:      path,
+		UploadID: uploadID,
+		Bucket:   o.bucket.BucketName,
+	}
+
+	// 列出已上传的分片
+	lpr, err := o.bucket.ListUploadedParts(initMultipartUploadResult, oss.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	parts := make([]fs.MultipartPart, 0, len(lpr.UploadedParts))
+	for _, part := range lpr.UploadedParts {
+		parts = append(parts, fs.MultipartPart{
+			PartNumber: part.PartNumber,
+			ETag:       part.ETag,
+			Size:       int64(part.Size),
+		})
+	}
+	return parts, nil
 }

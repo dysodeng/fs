@@ -58,4 +58,8 @@ type FileSystem interface {
 	CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []MultipartPart) error
 	// AbortMultipartUpload 取消分片上传
 	AbortMultipartUpload(ctx context.Context, path string, uploadID string) error
+	// ListMultipartUploads 列出所有未完成的分片上传
+	ListMultipartUploads(ctx context.Context) ([]MultipartUploadInfo, error)
+	// ListUploadedParts 列出已上传的分片
+	ListUploadedParts(ctx context.Context, path string, uploadID string) ([]MultipartPart, error)
 }

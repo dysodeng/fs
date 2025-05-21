@@ -43,7 +43,6 @@ func (m *minioFs) UploadPart(ctx context.Context, path string, uploadID string, 
 		data = buf
 	}
 
-	// 使用底层API上传分片
 	part, err := m.core.PutObjectPart(ctx, m.config.BucketName, path, uploadID, partNumber, data, size, minio.PutObjectPartOptions{})
 	if err != nil {
 		return "", err
@@ -62,12 +61,60 @@ func (m *minioFs) CompleteMultipartUpload(ctx context.Context, path string, uplo
 		}
 	}
 
-	// 使用底层API完成分片上传
 	_, err := m.core.CompleteMultipartUpload(ctx, m.config.BucketName, path, uploadID, completeParts, minio.PutObjectOptions{})
 	return err
 }
 
 func (m *minioFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string) error {
-	// 使用底层API取消分片上传
 	return m.core.AbortMultipartUpload(ctx, m.config.BucketName, path, uploadID)
+}
+
+func (m *minioFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
+	var uploads []fs.MultipartUploadInfo
+	for multipart := range m.client.ListIncompleteUploads(ctx, m.config.BucketName, "", true) {
+		if multipart.Err != nil {
+			return nil, multipart.Err
+		}
+		uploads = append(uploads, fs.MultipartUploadInfo{
+			UploadID:   multipart.UploadID,
+			Path:       multipart.Key,
+			CreateTime: multipart.Initiated,
+		})
+	}
+	return uploads, nil
+}
+
+func (m *minioFs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+	var parts []fs.MultipartPart
+
+	// 初始化参数
+	partNumberMarker := 0
+	maxParts := 1000 // 每次获取的最大分片数
+
+	for {
+		// 获取分片列表
+		result, err := m.core.ListObjectParts(ctx, m.config.BucketName, path, uploadID, partNumberMarker, maxParts)
+		if err != nil {
+			return nil, err
+		}
+
+		// 添加分片信息
+		for _, part := range result.ObjectParts {
+			parts = append(parts, fs.MultipartPart{
+				PartNumber: part.PartNumber,
+				ETag:       part.ETag,
+				Size:       part.Size,
+			})
+		}
+
+		// 如果所有分片都已获取，退出循环
+		if !result.IsTruncated {
+			break
+		}
+
+		// 更新partNumberMarker，继续获取下一批分片
+		partNumberMarker = result.NextPartNumberMarker
+	}
+
+	return parts, nil
 }
