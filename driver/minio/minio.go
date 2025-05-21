@@ -26,6 +26,7 @@ type Config struct {
 // minioFs MinIO文件系统
 type minioFs struct {
 	client *minio.Client
+	core   *minio.Core
 	config Config
 }
 
@@ -57,6 +58,7 @@ func New(config Config) (fs.FileSystem, error) {
 
 	return &minioFs{
 		client: client,
+		core:   &minio.Core{Client: client},
 		config: config,
 	}, nil
 }

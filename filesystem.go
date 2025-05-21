@@ -49,4 +49,13 @@ type FileSystem interface {
 	IsDir(ctx context.Context, path string) (bool, error)
 	// IsFile 判断是否为文件
 	IsFile(ctx context.Context, path string) (bool, error)
+
+	// InitMultipartUpload 初始化分片上传
+	InitMultipartUpload(ctx context.Context, path string) (string, error)
+	// UploadPart 上传分片
+	UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader) (string, error)
+	// CompleteMultipartUpload 完成分片上传
+	CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []MultipartPart) error
+	// AbortMultipartUpload 取消分片上传
+	AbortMultipartUpload(ctx context.Context, path string, uploadID string) error
 }

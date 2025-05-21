@@ -25,3 +25,9 @@ type CreateOptions struct {
 	// Metadata 文件元数据
 	Metadata Metadata
 }
+
+// MultipartPart 分片信息
+type MultipartPart struct {
+	PartNumber int    // 分片号
+	ETag       string // 分片ETag
+}

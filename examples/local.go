@@ -13,7 +13,7 @@ import (
 
 func Local() {
 	// 创建文件系统实例
-	fs := local.New("./tmp")
+	fs := local.New(local.Config{RootPath: "./tmp"})
 
 	ctx := context.Background()
 
