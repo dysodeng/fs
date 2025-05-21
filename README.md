@@ -3,6 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/dysodeng/fs.svg)](https://pkg.go.dev/github.com/dysodeng/fs)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dysodeng/fs)](https://goreportcard.com/report/github.com/dysodeng/fs)
 [![License](https://img.shields.io/github/license/dysodeng/fs.svg)](https://github.com/dysodeng/fs/blob/main/LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dysodeng/fs)
 
 Go FileSystem 是一个统一的文件系统接口实现，支持本地文件系统和多种云存储服务。它提供了一致的 API 来操作不同的存储系统，使得在不同存储系统之间切换变得简单。
 
