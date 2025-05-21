@@ -12,17 +12,17 @@ import (
 )
 
 type MultipartUpload struct {
-	path     string
-	uploadID string
-	parts    map[int]string // partNumber -> tempFilePath
+	Path     string         `json:"path"`
+	UploadID string         `json:"upload_id"`
+	Parts    map[int]string `json:"parts"` // partNumber -> tempFilePath
 }
 
 func (localFs *local) InitMultipartUpload(ctx context.Context, path string) (string, error) {
 	uploadID := uuid.New().String()
 	upload := &MultipartUpload{
-		path:     path,
-		uploadID: uploadID,
-		parts:    make(map[int]string),
+		Path:     path,
+		UploadID: uploadID,
+		Parts:    make(map[int]string),
 	}
 	if err := localFs.multipartStorage.Save(upload); err != nil {
 		return "", err
@@ -49,7 +49,7 @@ func (localFs *local) UploadPart(ctx context.Context, path string, uploadID stri
 		return "", err
 	}
 
-	upload.parts[partNumber] = tempFile.Name()
+	upload.Parts[partNumber] = tempFile.Name()
 	if err := localFs.multipartStorage.Save(upload); err != nil {
 		_ = os.Remove(tempFile.Name())
 		return "", err
@@ -62,7 +62,9 @@ func (localFs *local) CompleteMultipartUpload(ctx context.Context, path string, 
 	if err != nil {
 		return err
 	}
-	defer localFs.multipartStorage.Delete(uploadID)
+	defer func() {
+		_ = localFs.multipartStorage.Delete(uploadID)
+	}()
 
 	// 创建目标文件
 	fullPath := localFs.fullPath(path)
@@ -74,11 +76,13 @@ func (localFs *local) CompleteMultipartUpload(ctx context.Context, path string, 
 	if err != nil {
 		return err
 	}
-	defer destFile.Close()
+	defer func() {
+		_ = destFile.Close()
+	}()
 
 	// 按顺序合并分片
 	for _, part := range parts {
-		tempPath, ok := upload.parts[part.PartNumber]
+		tempPath, ok := upload.Parts[part.PartNumber]
 		if !ok {
 			return fmt.Errorf("part %d not found", part.PartNumber)
 		}
@@ -110,7 +114,7 @@ func (localFs *local) AbortMultipartUpload(ctx context.Context, path string, upl
 	}
 
 	// 删除所有临时文件
-	for _, tempPath := range upload.parts {
+	for _, tempPath := range upload.Parts {
 		_ = os.Remove(tempPath)
 	}
 

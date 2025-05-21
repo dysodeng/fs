@@ -36,11 +36,11 @@ func (s *FileMultipartStorage) getFilePath(uploadID string) string {
 }
 
 func (s *FileMultipartStorage) Save(upload *MultipartUpload) error {
-	data, err := json.Marshal(upload)
+	data, err := json.Marshal(*upload)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.getFilePath(upload.uploadID), data, 0644)
+	return os.WriteFile(s.getFilePath(upload.UploadID), data, 0644)
 }
 
 func (s *FileMultipartStorage) Get(uploadID string) (*MultipartUpload, error) {
