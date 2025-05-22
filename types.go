@@ -18,14 +18,6 @@ type FileInfo interface {
 // Metadata 文件元数据
 type Metadata map[string]interface{}
 
-// CreateOptions 文件创建选项
-type CreateOptions struct {
-	// ContentType 文件内容类型
-	ContentType string `json:"content_type"`
-	// Metadata 文件元数据
-	Metadata Metadata `json:"metadata"`
-}
-
 // MultipartPart 分片信息
 type MultipartPart struct {
 	PartNumber int    `json:"part_number"` // 分片号
