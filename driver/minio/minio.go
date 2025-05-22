@@ -15,12 +15,13 @@ import (
 )
 
 type Config struct {
-	Endpoint        string // MinIO服务地址
-	AccessKeyID     string // AccessKey
-	SecretAccessKey string // SecretKey
-	UseSSL          bool   // 是否使用SSL
-	BucketName      string // 存储桶名称
-	Location        string // 区域
+	Endpoint        string        // MinIO服务地址
+	AccessKeyID     string        // AccessKey
+	SecretAccessKey string        // SecretKey
+	UseSSL          bool          // 是否使用SSL
+	BucketName      string        // 存储桶名称
+	Location        string        // 区域
+	AccessMode      fs.AccessMode // 访问模式
 }
 
 // minioFs MinIO文件系统
@@ -31,7 +32,6 @@ type minioFs struct {
 }
 
 func New(config Config) (fs.FileSystem, error) {
-
 	// 初始化MinIO客户端
 	client, err := minio.New(config.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(config.AccessKeyID, config.SecretAccessKey, ""),

@@ -14,10 +14,11 @@ import (
 )
 
 type Config struct {
-	Endpoint        string // OBS服务地址
-	AccessKeyID     string // AccessKey
-	SecretAccessKey string // SecretKey
-	BucketName      string // 存储桶名称
+	Endpoint        string        // OBS服务地址
+	AccessKeyID     string        // AccessKey
+	SecretAccessKey string        // SecretKey
+	BucketName      string        // 存储桶名称
+	AccessMode      fs.AccessMode // 访问模式
 }
 
 // obsFs OBS文件系统

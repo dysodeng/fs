@@ -46,6 +46,13 @@ type FileSystem interface {
 	// IsFile 判断是否为文件
 	IsFile(ctx context.Context, path string, opts ...Option) (bool, error)
 
+	// SignFullUrl 带签名的全路径文件访问url
+	SignFullUrl(ctx context.Context, path string, opts ...Option) (string, error)
+	// FullUrl 全路径文件访问url
+	FullUrl(ctx context.Context, path string, opts ...Option) (string, error)
+	// RelativePath 还原文件路径
+	RelativePath(ctx context.Context, fullUrl string, opts ...Option) (string, error)
+
 	// Uploader 文件上传
 	Uploader() Uploader
 }

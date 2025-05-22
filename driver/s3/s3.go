@@ -18,12 +18,13 @@ import (
 )
 
 type Config struct {
-	Region          string // AWS 区域
-	Endpoint        string // S3 服务地址（可选，用于兼容其他 S3 协议的存储服务）
-	AccessKeyID     string // AccessKey
-	SecretAccessKey string // SecretKey
-	BucketName      string // 存储桶名称
-	UsePathStyle    bool   // 是否使用路径样式访问
+	Region          string        // AWS 区域
+	Endpoint        string        // S3 服务地址（可选，用于兼容其他 S3 协议的存储服务）
+	AccessKeyID     string        // AccessKey
+	SecretAccessKey string        // SecretKey
+	BucketName      string        // 存储桶名称
+	UsePathStyle    bool          // 是否使用路径样式访问
+	AccessMode      fs.AccessMode // 访问模式
 }
 
 // s3Fs S3文件系统

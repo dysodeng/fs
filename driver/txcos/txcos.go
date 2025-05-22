@@ -14,9 +14,10 @@ import (
 )
 
 type Config struct {
-	BucketURL string // 存储桶URL
-	SecretID  string // 密钥ID
-	SecretKey string // 密钥Key
+	BucketURL  string        // 存储桶URL
+	SecretID   string        // 密钥ID
+	SecretKey  string        // 密钥Key
+	AccessMode fs.AccessMode // 访问模式
 }
 
 // cosFs 腾讯云COS文件系统
