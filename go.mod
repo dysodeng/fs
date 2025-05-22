@@ -1,6 +1,6 @@
 module github.com/dysodeng/fs
 
-go 1.24.1
+go 1.23.0
 
 require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
