@@ -10,6 +10,25 @@ import (
 	"github.com/dysodeng/fs"
 )
 
+func (s *s3Fs) Uploader() fs.Uploader {
+	return s
+}
+
+func (s *s3Fs) Upload(ctx context.Context, path string, reader io.Reader) error {
+	file, err := s.Create(ctx, path)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		_ = file.Close()
+		return err
+	}
+
+	return file.Close()
+}
+
 func (s *s3Fs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
 	input := &s3.CreateMultipartUploadInput{
 		Bucket: aws.String(s.config.BucketName),

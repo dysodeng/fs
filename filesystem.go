@@ -50,6 +50,14 @@ type FileSystem interface {
 	// IsFile 判断是否为文件
 	IsFile(ctx context.Context, path string) (bool, error)
 
+	// Uploader 文件上传
+	Uploader() Uploader
+}
+
+// Uploader 文件上传器
+type Uploader interface {
+	// Upload 文件上传
+	Upload(ctx context.Context, path string, reader io.Reader) error
 	// InitMultipartUpload 初始化分片上传
 	InitMultipartUpload(ctx context.Context, path string) (string, error)
 	// UploadPart 上传分片

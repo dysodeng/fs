@@ -9,6 +9,25 @@ import (
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
+func (c *cosFs) Uploader() fs.Uploader {
+	return c
+}
+
+func (c *cosFs) Upload(ctx context.Context, path string, reader io.Reader) error {
+	file, err := c.Create(ctx, path)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		_ = file.Close()
+		return err
+	}
+
+	return file.Close()
+}
+
 func (c *cosFs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
 	res, _, err := c.client.Object.InitiateMultipartUpload(ctx, path, nil)
 	if err != nil {

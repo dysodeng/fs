@@ -22,11 +22,10 @@ Go FileSystem 是一个统一的文件系统接口实现，支持本地文件系
   - 目录的创建、删除、遍历
   - 文件元数据的读写
   - MIME 类型检测
-  - 分片上传和断点续传
+  - 文件上传
+    - 普通文件上传
     - 支持大文件分片上传
-    - 支持断点续传
-    - 支持上传进度查询
-    - 支持已上传分片管理
+    - 支持分片断点续传
 
 ## Installation
 
@@ -219,18 +218,17 @@ func main() {
 }
 ```
 
-## 分片上传和断点续传
+## 文件上传功能
 
-所有存储驱动都支持分片上传和断点续传功能，可以用于处理大文件上传。
+所有存储驱动都支持三种文件上传方式：普通文件上传、分片文件上传和分片断点续传。
 
-### 分片上传
-分片上传是将大文件分割成多个小文件进行上传，每个小文件的大小可以根据实际情况进行调整。以下是一个示例：
+### 普通文件上传
+适用于小文件上传的场景，使用简单直接：
 ```go
 package main
 
 import (
     "context"
-    "io"
     "os"
     "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/alioss" // 这里以阿里云OSS为例
@@ -250,8 +248,53 @@ func main() {
         panic(err)
     }
 
+    // 打开本地文件
+    file, err := os.Open("local-file.txt")
+    if err != nil {
+        panic(err)
+    }
+    defer file.Close()
+
+    // 使用 Uploader 接口上传文件
+    uploader := fs.Uploader()
+    err = uploader.Upload(context.Background(), "remote-file.txt", file)
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+### 文件分片上传
+分片上传是将大文件分割成多个小文件进行上传，每个小文件的大小可以根据实际情况进行调整。以下是一个示例：
+```go
+package main
+
+import (
+    "context"
+    "io"
+    "os"
+    "github.com/dysodeng/fs"
+    "github.com/dysodeng/fs/driver/alioss"
+)
+
+func main() {
+    // 初始化存储驱动
+    config := alioss.Config{
+        Endpoint:        "oss-cn-hangzhou.aliyuncs.com",
+        AccessKeyID:     "your-access-key",
+        SecretAccessKey: "your-secret-key",
+        BucketName:      "your-bucket",
+    }
+    
+    fs, err := alioss.New(config)
+    if err != nil {
+        panic(err)
+    }
+
+    uploader := fs.Uploader()
+
     // 1. 初始化分片上传
-    uploadID, err := fs.InitMultipartUpload(context.Background(), "large-file.zip")
+    uploadID, err := uploader.InitMultipartUpload(context.Background(), "large-file.zip")
     if err != nil {
         panic(err)
     }
@@ -260,40 +303,45 @@ func main() {
     var parts []fs.MultipartPart
     partSize := int64(5 * 1024 * 1024) // 5MB per part
     file, _ := os.Open("local-large-file.zip")
+    defer file.Close()
     
+    buffer := make([]byte, partSize)
     for partNumber := 1; ; partNumber++ {
-        buffer := make([]byte, partSize)
         n, err := file.Read(buffer)
         if err == io.EOF {
             break
         }
         
-        part, err := fs.UploadPart(context.Background(), "large-file.zip", uploadID, partNumber, bytes.NewReader(buffer[:n]))
+        etag, err := uploader.UploadPart(context.Background(), "large-file.zip", uploadID, partNumber, bytes.NewReader(buffer[:n]))
         if err != nil {
             // 出错时可以中断上传
-            fs.AbortMultipartUpload(context.Background(), "large-file.zip", uploadID)
+            uploader.AbortMultipartUpload(context.Background(), "large-file.zip", uploadID)
             panic(err)
         }
         
-        parts = append(parts, part)
+        parts = append(parts, fs.MultipartPart{
+            PartNumber: partNumber,
+            ETag:      etag,
+        })
     }
 
     // 3. 完成上传
-    err = fs.CompleteMultipartUpload(context.Background(), "large-file.zip", uploadID, parts)
+    err = uploader.CompleteMultipartUpload(context.Background(), "large-file.zip", uploadID, parts)
     if err != nil {
         panic(err)
     }
 }
 ```
 
-### 断点续传
+### 分片断点续传
 断点续传是在上传过程中，如果网络中断或上传失败，可以从上次中断的位置继续上传。以下是一个示例：
 ```go
 func resumeUpload(fsCli fs.FileSystem, localFile, remotePath string) error {
     ctx := context.Background()
+    uploader := fsCli.Uploader()
     
     // 1. 查找未完成的上传任务
-    uploads, err := fsCli.ListMultipartUploads(ctx)
+    uploads, err := uploader.ListMultipartUploads(ctx)
     if err != nil {
         return err
     }
@@ -307,7 +355,7 @@ func resumeUpload(fsCli fs.FileSystem, localFile, remotePath string) error {
     }
     
     // 2. 获取已上传的分片
-    parts, err := fsCli.ListUploadedParts(ctx, remotePath, targetUpload.UploadID)
+    parts, err := uploader.ListUploadedParts(ctx, remotePath, targetUpload.UploadID)
     if err != nil {
         return err
     }
@@ -339,7 +387,7 @@ func resumeUpload(fsCli fs.FileSystem, localFile, remotePath string) error {
             break
         }
         
-        etag, err := fsCli.UploadPart(ctx, remotePath, targetUpload.UploadID, partNumber, bytes.NewReader(buffer[:n]))
+        etag, err := uploader.UploadPart(ctx, remotePath, targetUpload.UploadID, partNumber, bytes.NewReader(buffer[:n]))
         if err != nil {
             return err
         }
@@ -351,6 +399,6 @@ func resumeUpload(fsCli fs.FileSystem, localFile, remotePath string) error {
     }
     
     // 5. 完成上传
-    return fsCli.CompleteMultipartUpload(ctx, remotePath, targetUpload.UploadID, parts)
+    return uploader.CompleteMultipartUpload(ctx, remotePath, targetUpload.UploadID, parts)
 }
 ```

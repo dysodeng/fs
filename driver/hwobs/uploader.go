@@ -8,6 +8,25 @@ import (
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 )
 
+func (o *obsFs) Uploader() fs.Uploader {
+	return o
+}
+
+func (o *obsFs) Upload(ctx context.Context, path string, reader io.Reader) error {
+	file, err := o.Create(ctx, path)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		_ = file.Close()
+		return err
+	}
+
+	return file.Close()
+}
+
 func (o *obsFs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
 	input := &obs.InitiateMultipartUploadInput{}
 	input.Bucket = o.config.BucketName

@@ -9,6 +9,25 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
+func (m *minioFs) Uploader() fs.Uploader {
+	return m
+}
+
+func (m *minioFs) Upload(ctx context.Context, path string, reader io.Reader) error {
+	file, err := m.Create(ctx, path)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		_ = file.Close()
+		return err
+	}
+
+	return file.Close()
+}
+
 func (m *minioFs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
 	// 使用底层API创建分片上传
 	opts := minio.PutObjectOptions{}

@@ -9,6 +9,25 @@ import (
 	"github.com/dysodeng/fs"
 )
 
+func (o *ossFs) Uploader() fs.Uploader {
+	return o
+}
+
+func (o *ossFs) Upload(ctx context.Context, path string, reader io.Reader) error {
+	file, err := o.Create(ctx, path)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		_ = file.Close()
+		return err
+	}
+
+	return file.Close()
+}
+
 func (o *ossFs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
 	initMultipartUploadResult, err := o.bucket.InitiateMultipartUpload(path, oss.WithContext(ctx))
 	if err != nil {

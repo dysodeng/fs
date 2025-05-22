@@ -19,6 +19,25 @@ type MultipartUpload struct {
 	CreateTime string         `json:"create_time"`
 }
 
+func (localFs *local) Uploader() fs.Uploader {
+	return localFs
+}
+
+func (localFs *local) Upload(ctx context.Context, path string, reader io.Reader) error {
+	file, err := localFs.Create(ctx, path)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		_ = file.Close()
+		return err
+	}
+
+	return file.Close()
+}
+
 func (localFs *local) InitMultipartUpload(ctx context.Context, path string) (string, error) {
 	uploadID := uuid.New().String()
 	upload := &MultipartUpload{
