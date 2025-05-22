@@ -63,16 +63,16 @@ func New(config Config) (fs.FileSystem, error) {
 	}, nil
 }
 
-func (m *minioFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) {
+func (driver *minioFs) List(ctx context.Context, path string, opts ...fs.Option) ([]fs.FileInfo, error) {
 	var fileInfos []fs.FileInfo
 
 	// 使用ListObjects来获取指定前缀的对象
-	opts := minio.ListObjectsOptions{
+	options := minio.ListObjectsOptions{
 		Prefix:    strings.TrimRight(path, "/"),
 		Recursive: false,
 	}
 
-	for object := range m.client.ListObjects(ctx, m.config.BucketName, opts) {
+	for object := range driver.client.ListObjects(ctx, driver.config.BucketName, options) {
 		if object.Err != nil {
 			return nil, object.Err
 		}
@@ -82,20 +82,20 @@ func (m *minioFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) 
 	return fileInfos, nil
 }
 
-func (m *minioFs) MakeDir(_ context.Context, _ string, _ os.FileMode) error {
+func (driver *minioFs) MakeDir(_ context.Context, _ string, _ os.FileMode, opts ...fs.Option) error {
 	// MinIO目录在写入文件时自动创建
 	return nil
 }
 
-func (m *minioFs) RemoveDir(ctx context.Context, path string) error {
-	opts := minio.ListObjectsOptions{
+func (driver *minioFs) RemoveDir(ctx context.Context, path string, opts ...fs.Option) error {
+	options := minio.ListObjectsOptions{
 		Prefix:    filepath.Clean(path) + "/",
 		Recursive: true,
 	}
 
 	// 删除目录下的所有对象
-	for object := range m.client.ListObjects(ctx, m.config.BucketName, opts) {
-		err := m.client.RemoveObject(ctx, m.config.BucketName, object.Key, minio.RemoveObjectOptions{})
+	for object := range driver.client.ListObjects(ctx, driver.config.BucketName, options) {
+		err := driver.client.RemoveObject(ctx, driver.config.BucketName, object.Key, minio.RemoveObjectOptions{})
 		if err != nil {
 			return err
 		}
@@ -103,78 +103,70 @@ func (m *minioFs) RemoveDir(ctx context.Context, path string) error {
 	return nil
 }
 
-func (m *minioFs) Create(ctx context.Context, path string) (io.WriteCloser, error) {
-	return m.CreateWithOptions(ctx, path, fs.CreateOptions{})
+func (driver *minioFs) Create(ctx context.Context, path string, opts ...fs.Option) (io.WriteCloser, error) {
+	return newMinioWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 }
 
-func (m *minioFs) CreateWithMetadata(ctx context.Context, path string, metadata fs.Metadata) (io.WriteCloser, error) {
-	return m.CreateWithOptions(ctx, path, fs.CreateOptions{Metadata: metadata})
+func (driver *minioFs) Open(ctx context.Context, path string, opts ...fs.Option) (io.ReadCloser, error) {
+	return driver.client.GetObject(ctx, driver.config.BucketName, path, minio.GetObjectOptions{})
 }
 
-func (m *minioFs) CreateWithOptions(ctx context.Context, path string, options fs.CreateOptions) (io.WriteCloser, error) {
-	return newMinioWriter(ctx, m.client, m.config.BucketName, path, options), nil
-}
-
-func (m *minioFs) Open(ctx context.Context, path string) (io.ReadCloser, error) {
-	return m.client.GetObject(ctx, m.config.BucketName, path, minio.GetObjectOptions{})
-}
-
-func (m *minioFs) OpenFile(ctx context.Context, path string, flag int, _ os.FileMode) (io.ReadWriteCloser, error) {
+func (driver *minioFs) OpenFile(ctx context.Context, path string, flag int, _ os.FileMode, opts ...fs.Option) (io.ReadWriteCloser, error) {
 	// MinIO不支持追加模式，这里实现读写功能
 	if flag&os.O_RDWR != 0 {
-		return newMinioReadWriter(ctx, m.client, m.config.BucketName, path), nil
+		return newMinioReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 	}
 	if flag&os.O_WRONLY != 0 {
 		// 对于只写模式，也返回 ReadWriter，但读取时会返回错误
-		return newMinioReadWriter(ctx, m.client, m.config.BucketName, path), nil
+		return newMinioReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 	}
 	// 对于只读模式，包装成 ReadWriteCloser
-	reader, err := m.Open(ctx, path)
+	reader, err := driver.Open(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return newMinioReadOnlyWrapper(reader), nil
 }
 
-func (m *minioFs) Remove(ctx context.Context, path string) error {
-	return m.client.RemoveObject(ctx, m.config.BucketName, path, minio.RemoveObjectOptions{})
+func (driver *minioFs) Remove(ctx context.Context, path string, opts ...fs.Option) error {
+	return driver.client.RemoveObject(ctx, driver.config.BucketName, path, minio.RemoveObjectOptions{})
 }
 
-func (m *minioFs) Copy(ctx context.Context, src, dst string) error {
-	_, err := m.client.CopyObject(ctx,
+func (driver *minioFs) Copy(ctx context.Context, src, dst string, opts ...fs.Option) error {
+	_, err := driver.client.CopyObject(ctx,
 		minio.CopyDestOptions{
-			Bucket: m.config.BucketName,
+			Bucket: driver.config.BucketName,
 			Object: dst,
 		},
 		minio.CopySrcOptions{
-			Bucket: m.config.BucketName,
+			Bucket: driver.config.BucketName,
 			Object: src,
 		})
 	return err
 }
 
-func (m *minioFs) Move(ctx context.Context, src, dst string) error {
+func (driver *minioFs) Move(ctx context.Context, src, dst string, opts ...fs.Option) error {
 	// 先复制后删除来实现移动
-	if err := m.Copy(ctx, src, dst); err != nil {
+	if err := driver.Copy(ctx, src, dst); err != nil {
 		return err
 	}
-	return m.Remove(ctx, src)
+	return driver.Remove(ctx, src)
 }
 
-func (m *minioFs) Rename(ctx context.Context, oldPath, newPath string) error {
-	return m.Move(ctx, oldPath, newPath)
+func (driver *minioFs) Rename(ctx context.Context, oldPath, newPath string, opts ...fs.Option) error {
+	return driver.Move(ctx, oldPath, newPath)
 }
 
-func (m *minioFs) Stat(ctx context.Context, path string) (fs.FileInfo, error) {
-	info, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
+func (driver *minioFs) Stat(ctx context.Context, path string, opts ...fs.Option) (fs.FileInfo, error) {
+	info, err := driver.client.StatObject(ctx, driver.config.BucketName, path, minio.StatObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return newMinioFileInfo(info), nil
 }
 
-func (m *minioFs) GetMimeType(ctx context.Context, path string) (string, error) {
-	stat, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
+func (driver *minioFs) GetMimeType(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	stat, err := driver.client.StatObject(ctx, driver.config.BucketName, path, minio.StatObjectOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -184,7 +176,7 @@ func (m *minioFs) GetMimeType(ctx context.Context, path string) (string, error) 
 	}
 
 	// 如果对象没有 ContentType，则读取文件内容进行检测
-	obj, err := m.Open(ctx, path)
+	obj, err := driver.Open(ctx, path)
 	if err != nil {
 		return "", err
 	}
@@ -201,7 +193,7 @@ func (m *minioFs) GetMimeType(ctx context.Context, path string) (string, error) 
 	return http.DetectContentType(buffer), nil
 }
 
-func (m *minioFs) SetMetadata(ctx context.Context, path string, metadata map[string]interface{}) error {
+func (driver *minioFs) SetMetadata(ctx context.Context, path string, metadata map[string]any, opts ...fs.Option) error {
 	// 将metadata转换为字符串map
 	strMetadata := make(map[string]string)
 	for k, v := range metadata {
@@ -209,25 +201,25 @@ func (m *minioFs) SetMetadata(ctx context.Context, path string, metadata map[str
 	}
 
 	// MinIO中需要通过复制对象来更新元数据
-	_, err := m.client.CopyObject(ctx,
+	_, err := driver.client.CopyObject(ctx,
 		minio.CopyDestOptions{
-			Bucket:          m.config.BucketName,
+			Bucket:          driver.config.BucketName,
 			Object:          path + "_tmp",
 			ReplaceMetadata: true,
 			UserMetadata:    strMetadata,
 		},
 		minio.CopySrcOptions{
-			Bucket: m.config.BucketName,
+			Bucket: driver.config.BucketName,
 			Object: path,
 		})
 	if err != nil {
 		return err
 	}
-	return m.Move(ctx, path+"_tmp", path)
+	return driver.Move(ctx, path+"_tmp", path)
 }
 
-func (m *minioFs) GetMetadata(ctx context.Context, path string) (map[string]interface{}, error) {
-	info, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
+func (driver *minioFs) GetMetadata(ctx context.Context, path string, opts ...fs.Option) (map[string]any, error) {
+	info, err := driver.client.StatObject(ctx, driver.config.BucketName, path, minio.StatObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -239,24 +231,24 @@ func (m *minioFs) GetMetadata(ctx context.Context, path string) (map[string]inte
 	return metadata, nil
 }
 
-func (m *minioFs) Exists(ctx context.Context, path string) (bool, error) {
+func (driver *minioFs) Exists(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
 	// 先检查是否为文件
-	if ok, err := m.IsFile(ctx, path); err == nil && ok {
+	if ok, err := driver.IsFile(ctx, path); err == nil && ok {
 		return true, nil
 	}
 
 	// 如果不是文件，检查是否为目录
-	return m.IsDir(ctx, path)
+	return driver.IsDir(ctx, path)
 }
 
-func (m *minioFs) IsDir(ctx context.Context, path string) (bool, error) {
-	opts := minio.ListObjectsOptions{
+func (driver *minioFs) IsDir(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	options := minio.ListObjectsOptions{
 		Prefix:    strings.TrimRight(path, "/") + "/",
 		Recursive: false,
 		MaxKeys:   1,
 	}
 
-	objectChan := m.client.ListObjects(ctx, m.config.BucketName, opts)
+	objectChan := driver.client.ListObjects(ctx, driver.config.BucketName, options)
 	object, ok := <-objectChan
 	if !ok {
 		return false, nil
@@ -267,8 +259,8 @@ func (m *minioFs) IsDir(ctx context.Context, path string) (bool, error) {
 	return true, nil
 }
 
-func (m *minioFs) IsFile(ctx context.Context, path string) (bool, error) {
-	_, err := m.client.StatObject(ctx, m.config.BucketName, path, minio.StatObjectOptions{})
+func (driver *minioFs) IsFile(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	_, err := driver.client.StatObject(ctx, driver.config.BucketName, path, minio.StatObjectOptions{})
 	if err == nil {
 		return true, nil
 	}

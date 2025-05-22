@@ -35,10 +35,15 @@ func HwObs() {
 	}
 
 	// 创建并写入文件
-	writer, err := fs.CreateWithOptions(ctx, "test/hello.txt", f.CreateOptions{
-		ContentType: "text/plain",
-		Metadata:    map[string]interface{}{"Author": "dysodeng", "Time": time.Now().Format(time.DateTime)},
-	})
+	writer, err := fs.Create(
+		ctx,
+		"test/hello.txt",
+		f.WithContentType("text/plain"),
+		f.WithMetadata(map[string]interface{}{
+			"Author": "dysodeng",
+			"Time":   time.Now().Format(time.DateTime),
+		}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

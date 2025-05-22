@@ -12,21 +12,35 @@ import (
 )
 
 type cosWriter struct {
-	ctx     context.Context
-	client  *cos.Client
-	path    string
-	options fs.CreateOptions
-	buffer  *bytes.Buffer
+	ctx         context.Context
+	client      *cos.Client
+	path        string
+	buffer      *bytes.Buffer
+	metadata    fs.Metadata
+	contentType string
 }
 
-func newCosWriter(ctx context.Context, client *cos.Client, path string, options fs.CreateOptions) *cosWriter {
-	return &cosWriter{
-		ctx:     ctx,
-		client:  client,
-		path:    path,
-		options: options,
-		buffer:  bytes.NewBuffer(nil),
+func newCosWriter(ctx context.Context, client *cos.Client, path string, opts ...fs.Option) *cosWriter {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
 	}
+
+	writer := &cosWriter{
+		ctx:    ctx,
+		client: client,
+		path:   path,
+		buffer: bytes.NewBuffer(nil),
+	}
+
+	if o.ContentType != "" {
+		writer.contentType = o.ContentType
+	}
+	if o.Metadata != nil {
+		writer.metadata = o.Metadata
+	}
+
+	return writer
 }
 
 func (w *cosWriter) Write(p []byte) (n int, err error) {
@@ -35,17 +49,17 @@ func (w *cosWriter) Write(p []byte) (n int, err error) {
 
 func (w *cosWriter) Close() error {
 	opt := &cos.ObjectPutOptions{}
-	if w.options.ContentType != "" {
+	if w.contentType != "" {
 		opt.ObjectPutHeaderOptions = &cos.ObjectPutHeaderOptions{
-			ContentType: w.options.ContentType,
+			ContentType: w.contentType,
 		}
 	}
-	if w.options.Metadata != nil {
+	if w.metadata != nil {
 		if opt.ObjectPutHeaderOptions == nil {
 			opt.ObjectPutHeaderOptions = &cos.ObjectPutHeaderOptions{}
 		}
 		opt.ObjectPutHeaderOptions.XCosMetaXXX = &http.Header{}
-		for k, v := range w.options.Metadata {
+		for k, v := range w.metadata {
 			opt.ObjectPutHeaderOptions.XCosMetaXXX.Set(fmt.Sprintf("x-cos-meta-%s", k), fmt.Sprintf("%v", v))
 		}
 	}
@@ -55,46 +69,35 @@ func (w *cosWriter) Close() error {
 }
 
 type cosReadWriter struct {
-	ctx    context.Context
-	client *cos.Client
-	path   string
-	buffer *bytes.Buffer
+	*cosWriter
+	reader io.ReadCloser
 }
 
-func newCosReadWriter(ctx context.Context, client *cos.Client, path string) *cosReadWriter {
+func newCosReadWriter(ctx context.Context, client *cos.Client, path string, opts ...fs.Option) *cosReadWriter {
 	return &cosReadWriter{
-		ctx:    ctx,
-		client: client,
-		path:   path,
-		buffer: bytes.NewBuffer(nil),
+		cosWriter: newCosWriter(ctx, client, path, opts...),
 	}
 }
 
 func (rw *cosReadWriter) Read(p []byte) (n int, err error) {
-	if rw.buffer.Len() == 0 {
-		resp, err := rw.client.Object.Get(rw.ctx, rw.path, nil)
+	if rw.reader == nil {
+		output, err := rw.client.Object.Get(rw.ctx, rw.path, nil)
 		if err != nil {
 			return 0, err
 		}
 		defer func() {
-			_ = resp.Body.Close()
+			_ = output.Body.Close()
 		}()
-
-		_, err = io.Copy(rw.buffer, resp.Body)
-		if err != nil {
-			return 0, err
-		}
+		rw.reader = output.Body
 	}
-	return rw.buffer.Read(p)
-}
-
-func (rw *cosReadWriter) Write(p []byte) (n int, err error) {
-	return rw.buffer.Write(p)
+	return rw.reader.Read(p)
 }
 
 func (rw *cosReadWriter) Close() error {
-	_, err := rw.client.Object.Put(rw.ctx, rw.path, bytes.NewReader(rw.buffer.Bytes()), nil)
-	return err
+	if rw.reader != nil {
+		_ = rw.reader.Close()
+	}
+	return rw.cosWriter.Close()
 }
 
 type cosReadOnlyWrapper struct {

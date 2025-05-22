@@ -12,23 +12,37 @@ import (
 )
 
 type s3Writer struct {
-	ctx     context.Context
-	client  *s3.Client
-	bucket  string
-	path    string
-	buffer  *bytes.Buffer
-	options fs.CreateOptions
+	ctx         context.Context
+	client      *s3.Client
+	bucket      string
+	path        string
+	buffer      *bytes.Buffer
+	metadata    fs.Metadata
+	contentType string
 }
 
-func newS3Writer(ctx context.Context, client *s3.Client, bucket, path string, options fs.CreateOptions) *s3Writer {
-	return &s3Writer{
-		ctx:     ctx,
-		client:  client,
-		bucket:  bucket,
-		path:    path,
-		buffer:  bytes.NewBuffer(nil),
-		options: options,
+func newS3Writer(ctx context.Context, client *s3.Client, bucket, path string, opts ...fs.Option) *s3Writer {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
 	}
+
+	writer := &s3Writer{
+		ctx:    ctx,
+		client: client,
+		bucket: bucket,
+		path:   path,
+		buffer: bytes.NewBuffer(nil),
+	}
+
+	if o.ContentType != "" {
+		writer.contentType = o.ContentType
+	}
+	if o.Metadata != nil {
+		writer.metadata = o.Metadata
+	}
+
+	return writer
 }
 
 func (w *s3Writer) Write(p []byte) (n int, err error) {
@@ -42,13 +56,13 @@ func (w *s3Writer) Close() error {
 		Body:   bytes.NewReader(w.buffer.Bytes()),
 	}
 
-	if w.options.ContentType != "" {
-		input.ContentType = aws.String(w.options.ContentType)
+	if w.contentType != "" {
+		input.ContentType = aws.String(w.contentType)
 	}
 
-	if w.options.Metadata != nil {
+	if w.metadata != nil {
 		input.Metadata = make(map[string]string)
-		for k, v := range w.options.Metadata {
+		for k, v := range w.metadata {
 			input.Metadata[k] = fmt.Sprintf("%v", v)
 		}
 	}
@@ -62,9 +76,9 @@ type s3ReadWriter struct {
 	reader io.ReadCloser
 }
 
-func newS3ReadWriter(ctx context.Context, client *s3.Client, bucket, path string) *s3ReadWriter {
+func newS3ReadWriter(ctx context.Context, client *s3.Client, bucket, path string, opts ...fs.Option) *s3ReadWriter {
 	return &s3ReadWriter{
-		s3Writer: newS3Writer(ctx, client, bucket, path, fs.CreateOptions{}),
+		s3Writer: newS3Writer(ctx, client, bucket, path, opts...),
 	}
 }
 

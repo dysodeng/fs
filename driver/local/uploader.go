@@ -19,12 +19,17 @@ type MultipartUpload struct {
 	CreateTime string         `json:"create_time"`
 }
 
-func (localFs *local) Uploader() fs.Uploader {
-	return localFs
+func (driver *localFs) Uploader() fs.Uploader {
+	return driver
 }
 
-func (localFs *local) Upload(ctx context.Context, path string, reader io.Reader) error {
-	file, err := localFs.Create(ctx, path)
+func (driver *localFs) Upload(ctx context.Context, path string, reader io.Reader, opts ...fs.Option) error {
+	options := &fs.Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	file, err := driver.Create(ctx, path, opts...)
 	if err != nil {
 		return err
 	}
@@ -38,21 +43,25 @@ func (localFs *local) Upload(ctx context.Context, path string, reader io.Reader)
 	return file.Close()
 }
 
-func (localFs *local) InitMultipartUpload(ctx context.Context, path string) (string, error) {
+func (driver *localFs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
+	}
 	uploadID := uuid.New().String()
 	upload := &MultipartUpload{
 		Path:     path,
 		UploadID: uploadID,
 		Parts:    make(map[int]string),
 	}
-	if err := localFs.multipartStorage.Save(upload); err != nil {
+	if err := driver.multipartStorage.Save(upload); err != nil {
 		return "", err
 	}
 	return uploadID, nil
 }
 
-func (localFs *local) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader) (string, error) {
-	upload, err := localFs.multipartStorage.Get(uploadID)
+func (driver *localFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
+	upload, err := driver.multipartStorage.Get(uploadID)
 	if err != nil {
 		return "", err
 	}
@@ -62,7 +71,9 @@ func (localFs *local) UploadPart(ctx context.Context, path string, uploadID stri
 	if err != nil {
 		return "", err
 	}
-	defer tempFile.Close()
+	defer func() {
+		_ = tempFile.Close()
+	}()
 
 	// 写入分片数据
 	if _, err := io.Copy(tempFile, data); err != nil {
@@ -72,24 +83,24 @@ func (localFs *local) UploadPart(ctx context.Context, path string, uploadID stri
 
 	upload.Parts[partNumber] = tempFile.Name()
 	upload.CreateTime = time.Now().Format(time.RFC3339)
-	if err := localFs.multipartStorage.Save(upload); err != nil {
+	if err := driver.multipartStorage.Save(upload); err != nil {
 		_ = os.Remove(tempFile.Name())
 		return "", err
 	}
 	return tempFile.Name(), nil
 }
 
-func (localFs *local) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart) error {
-	upload, err := localFs.multipartStorage.Get(uploadID)
+func (driver *localFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
+	upload, err := driver.multipartStorage.Get(uploadID)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = localFs.multipartStorage.Delete(uploadID)
+		_ = driver.multipartStorage.Delete(uploadID)
 	}()
 
 	// 创建目标文件
-	fullPath := localFs.fullPath(path)
+	fullPath := driver.fullPath(path)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		return err
 	}
@@ -120,7 +131,7 @@ func (localFs *local) CompleteMultipartUpload(ctx context.Context, path string, 
 			_ = tempFile.Close()
 			return err
 		}
-		tempFile.Close()
+		_ = tempFile.Close()
 
 		// 删除临时文件
 		_ = os.Remove(tempPath)
@@ -129,8 +140,8 @@ func (localFs *local) CompleteMultipartUpload(ctx context.Context, path string, 
 	return nil
 }
 
-func (localFs *local) AbortMultipartUpload(ctx context.Context, path string, uploadID string) error {
-	upload, err := localFs.multipartStorage.Get(uploadID)
+func (driver *localFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
+	upload, err := driver.multipartStorage.Get(uploadID)
 	if err != nil {
 		return nil
 	}
@@ -140,11 +151,11 @@ func (localFs *local) AbortMultipartUpload(ctx context.Context, path string, upl
 		_ = os.Remove(tempPath)
 	}
 
-	return localFs.multipartStorage.Delete(uploadID)
+	return driver.multipartStorage.Delete(uploadID)
 }
 
-func (localFs *local) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
-	uploads, err := localFs.multipartStorage.List()
+func (driver *localFs) ListMultipartUploads(ctx context.Context, opts ...fs.Option) ([]fs.MultipartUploadInfo, error) {
+	uploads, err := driver.multipartStorage.List()
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +172,8 @@ func (localFs *local) ListMultipartUploads(ctx context.Context) ([]fs.MultipartU
 	return result, nil
 }
 
-func (localFs *local) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
-	upload, err := localFs.multipartStorage.Get(uploadID)
+func (driver *localFs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
+	upload, err := driver.multipartStorage.Get(uploadID)
 	if err != nil {
 		return nil, err
 	}

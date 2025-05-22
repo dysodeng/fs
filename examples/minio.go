@@ -39,10 +39,15 @@ func MinIO() {
 	}
 
 	// 写入文件
-	writer, err := fs.CreateWithOptions(ctx, "test/hello.txt", f.CreateOptions{
-		Metadata:    map[string]interface{}{"Author": "dysodeng", "Time": time.Now().Format(time.DateTime)},
-		ContentType: "text/plain",
-	})
+	writer, err := fs.Create(
+		ctx,
+		"test/hello.txt",
+		f.WithContentType("text/plain"),
+		f.WithMetadata(map[string]interface{}{
+			"Author": "dysodeng",
+			"Time":   time.Now().Format(time.DateTime),
+		}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

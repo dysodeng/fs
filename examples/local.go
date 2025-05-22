@@ -13,12 +13,15 @@ import (
 
 func Local() {
 	// 创建文件系统实例
-	fs := local.New(local.Config{RootPath: "./tmp"})
+	fs, err := local.New(local.Config{RootPath: "./tmp"})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	ctx := context.Background()
 
 	// 创建目录
-	err := fs.MakeDir(ctx, "local", 0755)
+	err = fs.MakeDir(ctx, "local", 0755)
 	if err != nil {
 		log.Fatal(err)
 	}

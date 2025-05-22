@@ -12,21 +12,34 @@ import (
 
 // ossWriter 实现 io.WriteCloser 接口
 type ossWriter struct {
-	ctx     context.Context
-	bucket  *oss.Bucket
-	path    string
-	buffer  *bytes.Buffer
-	options fs.CreateOptions
+	ctx         context.Context
+	bucket      *oss.Bucket
+	path        string
+	buffer      *bytes.Buffer
+	metadata    fs.Metadata
+	contentType string
 }
 
-func newOssWriter(ctx context.Context, bucket *oss.Bucket, path string, options fs.CreateOptions) *ossWriter {
-	return &ossWriter{
-		ctx:     ctx,
-		bucket:  bucket,
-		path:    path,
-		buffer:  bytes.NewBuffer(nil),
-		options: options,
+func newOssWriter(ctx context.Context, bucket *oss.Bucket, path string, opts ...fs.Option) *ossWriter {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
 	}
+
+	writer := &ossWriter{
+		ctx:    ctx,
+		bucket: bucket,
+		path:   path,
+		buffer: bytes.NewBuffer(nil),
+	}
+	if o.ContentType != "" {
+		writer.contentType = o.ContentType
+	}
+	if o.Metadata != nil {
+		writer.metadata = o.Metadata
+	}
+
+	return writer
 }
 
 func (w *ossWriter) Write(p []byte) (n int, err error) {
@@ -48,13 +61,13 @@ func (w *ossWriter) Close() error {
 		}
 
 		// 设置 ContentType
-		if w.options.ContentType != "" {
-			options = append(options, oss.ContentType(w.options.ContentType))
+		if w.contentType != "" {
+			options = append(options, oss.ContentType(w.contentType))
 		}
 
 		// 处理metadata
-		if w.options.Metadata != nil {
-			for k, v := range w.options.Metadata {
+		if w.metadata != nil {
+			for k, v := range w.metadata {
 				options = append(options, oss.Meta(k, fmt.Sprintf("%v", v)))
 			}
 		}
@@ -69,9 +82,9 @@ type ossReadWriter struct {
 	reader io.ReadCloser
 }
 
-func newOssReadWriter(ctx context.Context, bucket *oss.Bucket, path string) *ossReadWriter {
+func newOssReadWriter(ctx context.Context, bucket *oss.Bucket, path string, opts ...fs.Option) *ossReadWriter {
 	return &ossReadWriter{
-		ossWriter: newOssWriter(ctx, bucket, path, fs.CreateOptions{}),
+		ossWriter: newOssWriter(ctx, bucket, path, opts...),
 	}
 }
 

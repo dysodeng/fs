@@ -39,7 +39,7 @@ func New(config Config) (fs.FileSystem, error) {
 	}, nil
 }
 
-func (o *obsFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) {
+func (driver *obsFs) List(ctx context.Context, path string, opts ...fs.Option) ([]fs.FileInfo, error) {
 	var fileInfos []fs.FileInfo
 	prefix := strings.TrimRight(path, "/")
 	if prefix != "" {
@@ -49,12 +49,12 @@ func (o *obsFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) {
 	marker := ""
 	for {
 		input := &obs.ListObjectsInput{
-			Bucket: o.config.BucketName,
+			Bucket: driver.config.BucketName,
 			Marker: marker,
 		}
 		input.Prefix = prefix
 
-		output, err := o.client.ListObjects(input)
+		output, err := driver.client.ListObjects(input)
 		if err != nil {
 			return nil, err
 		}
@@ -80,29 +80,29 @@ func (o *obsFs) List(ctx context.Context, path string) ([]fs.FileInfo, error) {
 	return fileInfos, nil
 }
 
-func (o *obsFs) MakeDir(ctx context.Context, path string, perm os.FileMode) error {
+func (driver *obsFs) MakeDir(ctx context.Context, path string, perm os.FileMode, opts ...fs.Option) error {
 	// OBS目录在写入文件时自动创建
 	return nil
 }
 
-func (o *obsFs) RemoveDir(ctx context.Context, path string) error {
+func (driver *obsFs) RemoveDir(ctx context.Context, path string, opts ...fs.Option) error {
 	prefix := strings.TrimRight(path, "/") + "/"
 	marker := ""
 	for {
 		input := &obs.ListObjectsInput{
-			Bucket: o.config.BucketName,
+			Bucket: driver.config.BucketName,
 			Marker: marker,
 		}
 		input.Prefix = prefix
 
-		output, err := o.client.ListObjects(input)
+		output, err := driver.client.ListObjects(input)
 		if err != nil {
 			return err
 		}
 
 		for _, object := range output.Contents {
-			_, err = o.client.DeleteObject(&obs.DeleteObjectInput{
-				Bucket: o.config.BucketName,
+			_, err = driver.client.DeleteObject(&obs.DeleteObjectInput{
+				Bucket: driver.config.BucketName,
 				Key:    object.Key,
 			})
 			if err != nil {
@@ -118,78 +118,70 @@ func (o *obsFs) RemoveDir(ctx context.Context, path string) error {
 	return nil
 }
 
-func (o *obsFs) Create(ctx context.Context, path string) (io.WriteCloser, error) {
-	return o.CreateWithOptions(ctx, path, fs.CreateOptions{})
+func (driver *obsFs) Create(ctx context.Context, path string, opts ...fs.Option) (io.WriteCloser, error) {
+	return newObsWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 }
 
-func (o *obsFs) CreateWithMetadata(ctx context.Context, path string, metadata fs.Metadata) (io.WriteCloser, error) {
-	return o.CreateWithOptions(ctx, path, fs.CreateOptions{Metadata: metadata})
-}
-
-func (o *obsFs) CreateWithOptions(ctx context.Context, path string, options fs.CreateOptions) (io.WriteCloser, error) {
-	return newObsWriter(ctx, o.client, o.config.BucketName, path, options), nil
-}
-
-func (o *obsFs) Open(ctx context.Context, path string) (io.ReadCloser, error) {
+func (driver *obsFs) Open(ctx context.Context, path string, opts ...fs.Option) (io.ReadCloser, error) {
 	input := &obs.GetObjectInput{}
-	input.Bucket = o.config.BucketName
+	input.Bucket = driver.config.BucketName
 	input.Key = path
-	output, err := o.client.GetObject(input)
+	output, err := driver.client.GetObject(input)
 	if err != nil {
 		return nil, err
 	}
 	return output.Body, nil
 }
 
-func (o *obsFs) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
+func (driver *obsFs) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode, opts ...fs.Option) (io.ReadWriteCloser, error) {
 	if flag&os.O_RDWR != 0 {
-		return newObsReadWriter(ctx, o.client, o.config.BucketName, path), nil
+		return newObsReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 	}
 	if flag&os.O_WRONLY != 0 {
-		return newObsReadWriter(ctx, o.client, o.config.BucketName, path), nil
+		return newObsReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 	}
-	reader, err := o.Open(ctx, path)
+	reader, err := driver.Open(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return newObsReadOnlyWrapper(reader), nil
 }
 
-func (o *obsFs) Remove(ctx context.Context, path string) error {
-	_, err := o.client.DeleteObject(&obs.DeleteObjectInput{
-		Bucket: o.config.BucketName,
+func (driver *obsFs) Remove(ctx context.Context, path string, opts ...fs.Option) error {
+	_, err := driver.client.DeleteObject(&obs.DeleteObjectInput{
+		Bucket: driver.config.BucketName,
 		Key:    path,
 	})
 	return err
 }
 
-func (o *obsFs) Copy(ctx context.Context, src, dst string) error {
+func (driver *obsFs) Copy(ctx context.Context, src, dst string, opts ...fs.Option) error {
 	input := &obs.CopyObjectInput{}
-	input.Bucket = o.config.BucketName
+	input.Bucket = driver.config.BucketName
 	input.Key = dst
-	input.CopySourceBucket = o.config.BucketName
+	input.CopySourceBucket = driver.config.BucketName
 	input.CopySourceKey = src
-	_, err := o.client.CopyObject(input)
+	_, err := driver.client.CopyObject(input)
 	return err
 }
 
-func (o *obsFs) Move(ctx context.Context, src, dst string) error {
-	if err := o.Copy(ctx, src, dst); err != nil {
+func (driver *obsFs) Move(ctx context.Context, src, dst string, opts ...fs.Option) error {
+	if err := driver.Copy(ctx, src, dst); err != nil {
 		return err
 	}
-	return o.Remove(ctx, src)
+	return driver.Remove(ctx, src)
 }
 
-func (o *obsFs) Rename(ctx context.Context, oldPath, newPath string) error {
-	return o.Move(ctx, oldPath, newPath)
+func (driver *obsFs) Rename(ctx context.Context, oldPath, newPath string, opts ...fs.Option) error {
+	return driver.Move(ctx, oldPath, newPath)
 }
 
-func (o *obsFs) Stat(ctx context.Context, path string) (fs.FileInfo, error) {
+func (driver *obsFs) Stat(ctx context.Context, path string, opts ...fs.Option) (fs.FileInfo, error) {
 	input := &obs.GetObjectMetadataInput{
-		Bucket: o.config.BucketName,
+		Bucket: driver.config.BucketName,
 		Key:    path,
 	}
-	output, err := o.client.GetObjectMetadata(input)
+	output, err := driver.client.GetObjectMetadata(input)
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +193,12 @@ func (o *obsFs) Stat(ctx context.Context, path string) (fs.FileInfo, error) {
 	}), nil
 }
 
-func (o *obsFs) GetMimeType(ctx context.Context, path string) (string, error) {
+func (driver *obsFs) GetMimeType(ctx context.Context, path string, opts ...fs.Option) (string, error) {
 	input := &obs.GetObjectMetadataInput{
-		Bucket: o.config.BucketName,
+		Bucket: driver.config.BucketName,
 		Key:    path,
 	}
-	output, err := o.client.GetObjectMetadata(input)
+	output, err := driver.client.GetObjectMetadata(input)
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +208,7 @@ func (o *obsFs) GetMimeType(ctx context.Context, path string) (string, error) {
 	}
 
 	// 如果对象没有 Content-Type，则读取文件内容进行检测
-	obj, err := o.Open(ctx, path)
+	obj, err := driver.Open(ctx, path)
 	if err != nil {
 		return "", err
 	}
@@ -233,11 +225,11 @@ func (o *obsFs) GetMimeType(ctx context.Context, path string) (string, error) {
 	return http.DetectContentType(buffer[:n]), nil
 }
 
-func (o *obsFs) SetMetadata(ctx context.Context, path string, metadata map[string]interface{}) error {
+func (driver *obsFs) SetMetadata(ctx context.Context, path string, metadata map[string]any, opts ...fs.Option) error {
 	input := &obs.CopyObjectInput{}
-	input.Bucket = o.config.BucketName
+	input.Bucket = driver.config.BucketName
 	input.Key = path
-	input.CopySourceBucket = o.config.BucketName
+	input.CopySourceBucket = driver.config.BucketName
 	input.CopySourceKey = path + "_tmp"
 
 	input.Metadata = make(map[string]string)
@@ -245,20 +237,20 @@ func (o *obsFs) SetMetadata(ctx context.Context, path string, metadata map[strin
 		input.Metadata[k] = fmt.Sprintf("%v", v)
 	}
 
-	_, err := o.client.CopyObject(input)
+	_, err := driver.client.CopyObject(input)
 	if err != nil {
 		return err
 	}
 
-	return o.Move(ctx, path+"_tmp", path)
+	return driver.Move(ctx, path+"_tmp", path)
 }
 
-func (o *obsFs) GetMetadata(ctx context.Context, path string) (map[string]interface{}, error) {
+func (driver *obsFs) GetMetadata(ctx context.Context, path string, opts ...fs.Option) (map[string]any, error) {
 	input := &obs.GetObjectMetadataInput{
-		Bucket: o.config.BucketName,
+		Bucket: driver.config.BucketName,
 		Key:    path,
 	}
-	output, err := o.client.GetObjectMetadata(input)
+	output, err := driver.client.GetObjectMetadata(input)
 	if err != nil {
 		return nil, err
 	}
@@ -270,31 +262,31 @@ func (o *obsFs) GetMetadata(ctx context.Context, path string) (map[string]interf
 	return metadata, nil
 }
 
-func (o *obsFs) Exists(ctx context.Context, path string) (bool, error) {
-	if ok, err := o.IsFile(ctx, path); err == nil && ok {
+func (driver *obsFs) Exists(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	if ok, err := driver.IsFile(ctx, path); err == nil && ok {
 		return true, nil
 	}
-	return o.IsDir(ctx, path)
+	return driver.IsDir(ctx, path)
 }
 
-func (o *obsFs) IsDir(ctx context.Context, path string) (bool, error) {
+func (driver *obsFs) IsDir(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
 	path = strings.TrimRight(path, "/") + "/"
 	input := &obs.ListObjectsInput{
-		Bucket: o.config.BucketName,
+		Bucket: driver.config.BucketName,
 	}
 	input.Prefix = path
 	input.Delimiter = "/"
 	input.MaxKeys = 1
-	output, err := o.client.ListObjects(input)
+	output, err := driver.client.ListObjects(input)
 	if err != nil {
 		return false, err
 	}
 	return len(output.Contents) > 0 || len(output.CommonPrefixes) > 0, nil
 }
 
-func (o *obsFs) IsFile(ctx context.Context, path string) (bool, error) {
-	_, err := o.client.GetObjectMetadata(&obs.GetObjectMetadataInput{
-		Bucket: o.config.BucketName,
+func (driver *obsFs) IsFile(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	_, err := driver.client.GetObjectMetadata(&obs.GetObjectMetadataInput{
+		Bucket: driver.config.BucketName,
 		Key:    path,
 	})
 	if err != nil {

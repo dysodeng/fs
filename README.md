@@ -40,14 +40,22 @@ package main
 
 import (
     "context"
+    f "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/local"
 )
 
 func main() {
-    fs := local.New("./storage")
+    fs, err := local.New(local.Config{RootPath: "./storage"})
+	if err != nil {
+		panic(err)
+    }
     
     // 写入文件
-    writer, err := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(
+		context.Background(), 
+		"test.txt", 
+		f.WithContentType("text/plain"),
+    )
     if err != nil {
         panic(err)
     }
@@ -61,6 +69,7 @@ package main
 
 import (
     "context"
+    f "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/minio"
 )
 
@@ -80,7 +89,11 @@ func main() {
     }
     
     // 写入文件
-    writer, err := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(
+        context.Background(),
+        "test.txt",
+        f.WithContentType("text/plain"),
+    )
     if err != nil {
         panic(err)
     }
@@ -95,6 +108,7 @@ package main
 
 import (
     "context"
+    f "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/alioss"
 )
 
@@ -112,7 +126,11 @@ func main() {
     }
     
     // 写入文件
-    writer, err := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(
+        context.Background(),
+        "test.txt",
+        f.WithContentType("text/plain"),
+    )
     if err != nil {
         panic(err)
     }
@@ -127,6 +145,7 @@ package main
 
 import (
     "context"
+    f "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/hwobs"
 )
 
@@ -144,7 +163,11 @@ func main() {
     }
     
     // 写入文件
-    writer, err := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(
+        context.Background(),
+        "test.txt",
+        f.WithContentType("text/plain"),
+    )
     if err != nil {
         panic(err)
     }
@@ -159,6 +182,7 @@ package main
 
 import (
     "context"
+    f "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/txcos"
 )
 
@@ -175,7 +199,11 @@ func main() {
     }
     
     // 写入文件
-    writer, err := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(
+        context.Background(),
+        "test.txt",
+        f.WithContentType("text/plain"),
+    )
     if err != nil {
         panic(err)
     }
@@ -190,6 +218,7 @@ package main
 
 import (
     "context"
+    f "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/s3"
 )
 
@@ -209,7 +238,11 @@ func main() {
     }
     
     // 写入文件
-    writer, err := fs.Create(context.Background(), "test.txt")
+    writer, err := fs.Create(
+        context.Background(),
+        "test.txt",
+        f.WithContentType("text/plain"),
+    )
     if err != nil {
         panic(err)
     }
@@ -230,7 +263,6 @@ package main
 import (
     "context"
     "os"
-    "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/alioss" // 这里以阿里云OSS为例
 )
 
@@ -273,7 +305,6 @@ import (
     "context"
     "io"
     "os"
-    "github.com/dysodeng/fs"
     "github.com/dysodeng/fs/driver/alioss"
 )
 

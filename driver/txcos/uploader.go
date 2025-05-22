@@ -9,12 +9,12 @@ import (
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
-func (c *cosFs) Uploader() fs.Uploader {
-	return c
+func (driver *cosFs) Uploader() fs.Uploader {
+	return driver
 }
 
-func (c *cosFs) Upload(ctx context.Context, path string, reader io.Reader) error {
-	file, err := c.Create(ctx, path)
+func (driver *cosFs) Upload(ctx context.Context, path string, reader io.Reader, opts ...fs.Option) error {
+	file, err := driver.Create(ctx, path, opts...)
 	if err != nil {
 		return err
 	}
@@ -28,23 +28,31 @@ func (c *cosFs) Upload(ctx context.Context, path string, reader io.Reader) error
 	return file.Close()
 }
 
-func (c *cosFs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
-	res, _, err := c.client.Object.InitiateMultipartUpload(ctx, path, nil)
+func (driver *cosFs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	options := &cos.InitiateMultipartUploadOptions{}
+	if o.ContentType != "" {
+		options.ContentType = o.ContentType
+	}
+	res, _, err := driver.client.Object.InitiateMultipartUpload(ctx, path, options)
 	if err != nil {
 		return "", err
 	}
 	return res.UploadID, nil
 }
 
-func (c *cosFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader) (string, error) {
-	res, err := c.client.Object.UploadPart(ctx, path, uploadID, partNumber, data, nil)
+func (driver *cosFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
+	res, err := driver.client.Object.UploadPart(ctx, path, uploadID, partNumber, data, nil)
 	if err != nil {
 		return "", err
 	}
 	return res.Header.Get("ETag"), nil
 }
 
-func (c *cosFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart) error {
+func (driver *cosFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
 	opt := &cos.CompleteMultipartUploadOptions{
 		Parts: make([]cos.Object, len(parts)),
 	}
@@ -54,18 +62,18 @@ func (c *cosFs) CompleteMultipartUpload(ctx context.Context, path string, upload
 			ETag:       part.ETag,
 		}
 	}
-	_, _, err := c.client.Object.CompleteMultipartUpload(ctx, path, uploadID, opt)
+	_, _, err := driver.client.Object.CompleteMultipartUpload(ctx, path, uploadID, opt)
 	return err
 }
 
-func (c *cosFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string) error {
-	_, err := c.client.Object.AbortMultipartUpload(ctx, path, uploadID)
+func (driver *cosFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
+	_, err := driver.client.Object.AbortMultipartUpload(ctx, path, uploadID)
 	return err
 }
 
-func (c *cosFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
+func (driver *cosFs) ListMultipartUploads(ctx context.Context, opts ...fs.Option) ([]fs.MultipartUploadInfo, error) {
 	opt := &cos.ListMultipartUploadsOptions{}
-	v, _, err := c.client.Bucket.ListMultipartUploads(ctx, opt)
+	v, _, err := driver.client.Bucket.ListMultipartUploads(ctx, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -82,9 +90,9 @@ func (c *cosFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadI
 	return result, nil
 }
 
-func (c *cosFs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+func (driver *cosFs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
 	opt := &cos.ObjectListPartsOptions{}
-	v, _, err := c.client.Object.ListParts(ctx, path, uploadID, opt)
+	v, _, err := driver.client.Object.ListParts(ctx, path, uploadID, opt)
 	if err != nil {
 		return nil, err
 	}

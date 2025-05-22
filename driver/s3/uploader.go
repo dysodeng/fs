@@ -10,12 +10,12 @@ import (
 	"github.com/dysodeng/fs"
 )
 
-func (s *s3Fs) Uploader() fs.Uploader {
-	return s
+func (driver *s3Fs) Uploader() fs.Uploader {
+	return driver
 }
 
-func (s *s3Fs) Upload(ctx context.Context, path string, reader io.Reader) error {
-	file, err := s.Create(ctx, path)
+func (driver *s3Fs) Upload(ctx context.Context, path string, reader io.Reader, opts ...fs.Option) error {
+	file, err := driver.Create(ctx, path, opts...)
 	if err != nil {
 		return err
 	}
@@ -29,34 +29,41 @@ func (s *s3Fs) Upload(ctx context.Context, path string, reader io.Reader) error 
 	return file.Close()
 }
 
-func (s *s3Fs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
+func (driver *s3Fs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
+	}
 	input := &s3.CreateMultipartUploadInput{
-		Bucket: aws.String(s.config.BucketName),
+		Bucket: aws.String(driver.config.BucketName),
 		Key:    aws.String(path),
 	}
-	output, err := s.client.CreateMultipartUpload(ctx, input)
+	if o.ContentType != "" {
+		input.ContentType = aws.String(o.ContentType)
+	}
+	output, err := driver.client.CreateMultipartUpload(ctx, input)
 	if err != nil {
 		return "", err
 	}
 	return *output.UploadId, nil
 }
 
-func (s *s3Fs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader) (string, error) {
+func (driver *s3Fs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
 	input := &s3.UploadPartInput{
-		Bucket:     aws.String(s.config.BucketName),
+		Bucket:     aws.String(driver.config.BucketName),
 		Key:        aws.String(path),
 		PartNumber: aws.Int32(int32(partNumber)),
 		UploadId:   aws.String(uploadID),
 		Body:       data,
 	}
-	output, err := s.client.UploadPart(ctx, input)
+	output, err := driver.client.UploadPart(ctx, input)
 	if err != nil {
 		return "", err
 	}
 	return *output.ETag, nil
 }
 
-func (s *s3Fs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart) error {
+func (driver *s3Fs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
 	completedParts := make([]types.CompletedPart, len(parts))
 	for i, part := range parts {
 		completedParts[i] = types.CompletedPart{
@@ -65,31 +72,31 @@ func (s *s3Fs) CompleteMultipartUpload(ctx context.Context, path string, uploadI
 		}
 	}
 	input := &s3.CompleteMultipartUploadInput{
-		Bucket:          aws.String(s.config.BucketName),
+		Bucket:          aws.String(driver.config.BucketName),
 		Key:             aws.String(path),
 		UploadId:        aws.String(uploadID),
 		MultipartUpload: &types.CompletedMultipartUpload{Parts: completedParts},
 	}
-	_, err := s.client.CompleteMultipartUpload(ctx, input)
+	_, err := driver.client.CompleteMultipartUpload(ctx, input)
 	return err
 }
 
-func (s *s3Fs) AbortMultipartUpload(ctx context.Context, path string, uploadID string) error {
+func (driver *s3Fs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
 	input := &s3.AbortMultipartUploadInput{
-		Bucket:   aws.String(s.config.BucketName),
+		Bucket:   aws.String(driver.config.BucketName),
 		Key:      aws.String(path),
 		UploadId: aws.String(uploadID),
 	}
-	_, err := s.client.AbortMultipartUpload(ctx, input)
+	_, err := driver.client.AbortMultipartUpload(ctx, input)
 	return err
 }
 
-func (s *s3Fs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
+func (driver *s3Fs) ListMultipartUploads(ctx context.Context, opts ...fs.Option) ([]fs.MultipartUploadInfo, error) {
 	input := &s3.ListMultipartUploadsInput{
-		Bucket: aws.String(s.config.BucketName),
+		Bucket: aws.String(driver.config.BucketName),
 	}
 
-	result, err := s.client.ListMultipartUploads(ctx, input)
+	result, err := driver.client.ListMultipartUploads(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -105,14 +112,14 @@ func (s *s3Fs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadIn
 	return uploads, nil
 }
 
-func (s *s3Fs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+func (driver *s3Fs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
 	input := &s3.ListPartsInput{
-		Bucket:   aws.String(s.config.BucketName),
+		Bucket:   aws.String(driver.config.BucketName),
 		Key:      aws.String(path),
 		UploadId: aws.String(uploadID),
 	}
 
-	result, err := s.client.ListParts(ctx, input)
+	result, err := driver.client.ListParts(ctx, input)
 	if err != nil {
 		return nil, err
 	}

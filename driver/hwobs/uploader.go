@@ -8,12 +8,12 @@ import (
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 )
 
-func (o *obsFs) Uploader() fs.Uploader {
-	return o
+func (driver *obsFs) Uploader() fs.Uploader {
+	return driver
 }
 
-func (o *obsFs) Upload(ctx context.Context, path string, reader io.Reader) error {
-	file, err := o.Create(ctx, path)
+func (driver *obsFs) Upload(ctx context.Context, path string, reader io.Reader, opts ...fs.Option) error {
+	file, err := driver.Create(ctx, path, opts...)
 	if err != nil {
 		return err
 	}
@@ -27,12 +27,19 @@ func (o *obsFs) Upload(ctx context.Context, path string, reader io.Reader) error
 	return file.Close()
 }
 
-func (o *obsFs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
+func (driver *obsFs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
+	}
 	input := &obs.InitiateMultipartUploadInput{}
-	input.Bucket = o.config.BucketName
+	input.Bucket = driver.config.BucketName
 	input.Key = path
+	if o.ContentType != "" {
+		input.ContentType = o.ContentType
+	}
 
-	output, err := o.client.InitiateMultipartUpload(input)
+	output, err := driver.client.InitiateMultipartUpload(input)
 	if err != nil {
 		return "", err
 	}
@@ -40,22 +47,22 @@ func (o *obsFs) InitMultipartUpload(ctx context.Context, path string) (string, e
 	return output.UploadId, nil
 }
 
-func (o *obsFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader) (string, error) {
+func (driver *obsFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
 	input := &obs.UploadPartInput{
-		Bucket:     o.config.BucketName,
+		Bucket:     driver.config.BucketName,
 		Key:        path,
 		PartNumber: partNumber,
 		UploadId:   uploadID,
 		Body:       data,
 	}
-	output, err := o.client.UploadPart(input)
+	output, err := driver.client.UploadPart(input)
 	if err != nil {
 		return "", err
 	}
 	return output.ETag, nil
 }
 
-func (o *obsFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart) error {
+func (driver *obsFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
 	obsParts := make([]obs.Part, len(parts))
 	for i, part := range parts {
 		obsParts[i] = obs.Part{
@@ -64,31 +71,31 @@ func (o *obsFs) CompleteMultipartUpload(ctx context.Context, path string, upload
 		}
 	}
 	input := &obs.CompleteMultipartUploadInput{
-		Bucket:   o.config.BucketName,
+		Bucket:   driver.config.BucketName,
 		Key:      path,
 		UploadId: uploadID,
 		Parts:    obsParts,
 	}
-	_, err := o.client.CompleteMultipartUpload(input)
+	_, err := driver.client.CompleteMultipartUpload(input)
 	return err
 }
 
-func (o *obsFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string) error {
+func (driver *obsFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
 	input := &obs.AbortMultipartUploadInput{
-		Bucket:   o.config.BucketName,
+		Bucket:   driver.config.BucketName,
 		Key:      path,
 		UploadId: uploadID,
 	}
 
-	_, err := o.client.AbortMultipartUpload(input)
+	_, err := driver.client.AbortMultipartUpload(input)
 	return err
 }
 
-func (o *obsFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
+func (driver *obsFs) ListMultipartUploads(ctx context.Context, opts ...fs.Option) ([]fs.MultipartUploadInfo, error) {
 	input := &obs.ListMultipartUploadsInput{
-		Bucket: o.config.BucketName,
+		Bucket: driver.config.BucketName,
 	}
-	output, err := o.client.ListMultipartUploads(input)
+	output, err := driver.client.ListMultipartUploads(input)
 	if err != nil {
 		return nil, err
 	}
@@ -104,13 +111,13 @@ func (o *obsFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadI
 	return uploads, nil
 }
 
-func (o *obsFs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+func (driver *obsFs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
 	input := &obs.ListPartsInput{
-		Bucket:   o.config.BucketName,
+		Bucket:   driver.config.BucketName,
 		Key:      path,
 		UploadId: uploadID,
 	}
-	output, err := o.client.ListParts(input)
+	output, err := driver.client.ListParts(input)
 	if err != nil {
 		return nil, err
 	}

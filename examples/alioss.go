@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	f "github.com/dysodeng/fs"
 	"github.com/dysodeng/fs/driver/alioss"
 )
 
@@ -35,7 +36,7 @@ func AliOss() {
 	}
 
 	// 创建并写入文件
-	writer, err := fs.Create(ctx, "test/hello.txt")
+	writer, err := fs.Create(ctx, "test/hello.txt", f.WithContentType("text/plain"))
 	if err != nil {
 		log.Fatal(err)
 	}

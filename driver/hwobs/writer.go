@@ -12,23 +12,37 @@ import (
 
 // obsWriter 实现 io.WriteCloser 接口
 type obsWriter struct {
-	ctx     context.Context
-	client  *obs.ObsClient
-	bucket  string
-	path    string
-	buffer  *bytes.Buffer
-	options fs.CreateOptions
+	ctx         context.Context
+	client      *obs.ObsClient
+	bucket      string
+	path        string
+	buffer      *bytes.Buffer
+	metadata    fs.Metadata
+	contentType string
 }
 
-func newObsWriter(ctx context.Context, client *obs.ObsClient, bucket, path string, options fs.CreateOptions) *obsWriter {
-	return &obsWriter{
-		ctx:     ctx,
-		client:  client,
-		bucket:  bucket,
-		path:    path,
-		buffer:  bytes.NewBuffer(nil),
-		options: options,
+func newObsWriter(ctx context.Context, client *obs.ObsClient, bucket, path string, opts ...fs.Option) *obsWriter {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
 	}
+
+	writer := &obsWriter{
+		ctx:    ctx,
+		client: client,
+		bucket: bucket,
+		path:   path,
+		buffer: bytes.NewBuffer(nil),
+	}
+
+	if o.ContentType != "" {
+		writer.contentType = o.ContentType
+	}
+	if o.Metadata != nil {
+		writer.metadata = o.Metadata
+	}
+
+	return writer
 }
 
 func (w *obsWriter) Write(p []byte) (n int, err error) {
@@ -52,14 +66,14 @@ func (w *obsWriter) Close() error {
 		input.Key = w.path
 
 		// 设置 ContentType
-		if w.options.ContentType != "" {
-			input.ContentType = w.options.ContentType
+		if w.contentType != "" {
+			input.ContentType = w.contentType
 		}
 
 		// 处理metadata
-		if w.options.Metadata != nil {
+		if w.metadata != nil {
 			input.Metadata = make(map[string]string)
-			for k, v := range w.options.Metadata {
+			for k, v := range w.metadata {
 				input.Metadata[k] = fmt.Sprintf("%v", v)
 			}
 		}
@@ -75,9 +89,9 @@ type obsReadWriter struct {
 	reader io.ReadCloser
 }
 
-func newObsReadWriter(ctx context.Context, client *obs.ObsClient, bucket, path string) *obsReadWriter {
+func newObsReadWriter(ctx context.Context, client *obs.ObsClient, bucket, path string, opts ...fs.Option) *obsReadWriter {
 	return &obsReadWriter{
-		obsWriter: newObsWriter(ctx, client, bucket, path, fs.CreateOptions{}),
+		obsWriter: newObsWriter(ctx, client, bucket, path, opts...),
 	}
 }
 

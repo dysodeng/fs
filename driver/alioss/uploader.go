@@ -9,12 +9,12 @@ import (
 	"github.com/dysodeng/fs"
 )
 
-func (o *ossFs) Uploader() fs.Uploader {
-	return o
+func (driver *ossFs) Uploader() fs.Uploader {
+	return driver
 }
 
-func (o *ossFs) Upload(ctx context.Context, path string, reader io.Reader) error {
-	file, err := o.Create(ctx, path)
+func (driver *ossFs) Upload(ctx context.Context, path string, reader io.Reader, opts ...fs.Option) error {
+	file, err := driver.Create(ctx, path, opts...)
 	if err != nil {
 		return err
 	}
@@ -28,19 +28,30 @@ func (o *ossFs) Upload(ctx context.Context, path string, reader io.Reader) error
 	return file.Close()
 }
 
-func (o *ossFs) InitMultipartUpload(ctx context.Context, path string) (string, error) {
-	initMultipartUploadResult, err := o.bucket.InitiateMultipartUpload(path, oss.WithContext(ctx))
+func (driver *ossFs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	options := []oss.Option{
+		oss.WithContext(ctx),
+	}
+	if o.ContentType != "" {
+		options = append(options, oss.ContentType(o.ContentType))
+	}
+
+	initMultipartUploadResult, err := driver.bucket.InitiateMultipartUpload(path, options...)
 	if err != nil {
 		return "", err
 	}
 	return initMultipartUploadResult.UploadID, nil
 }
 
-func (o *ossFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader) (string, error) {
+func (driver *ossFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
 	initMultipartUploadResult := oss.InitiateMultipartUploadResult{
 		Key:      path,
 		UploadID: uploadID,
-		Bucket:   o.bucket.BucketName,
+		Bucket:   driver.bucket.BucketName,
 	}
 
 	// 获取数据大小
@@ -66,7 +77,7 @@ func (o *ossFs) UploadPart(ctx context.Context, path string, uploadID string, pa
 		partSize = size
 	}
 
-	part, err := o.bucket.UploadPart(initMultipartUploadResult, data, partSize, partNumber, oss.WithContext(ctx))
+	part, err := driver.bucket.UploadPart(initMultipartUploadResult, data, partSize, partNumber, oss.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}
@@ -74,11 +85,11 @@ func (o *ossFs) UploadPart(ctx context.Context, path string, uploadID string, pa
 	return part.ETag, nil
 }
 
-func (o *ossFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart) error {
+func (driver *ossFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
 	initMultipartUploadResult := oss.InitiateMultipartUploadResult{
 		Key:      path,
 		UploadID: uploadID,
-		Bucket:   o.bucket.BucketName,
+		Bucket:   driver.bucket.BucketName,
 	}
 	ossParts := make([]oss.UploadPart, len(parts))
 	for i, part := range parts {
@@ -87,21 +98,21 @@ func (o *ossFs) CompleteMultipartUpload(ctx context.Context, path string, upload
 			ETag:       part.ETag,
 		}
 	}
-	_, err := o.bucket.CompleteMultipartUpload(initMultipartUploadResult, ossParts, oss.WithContext(ctx))
+	_, err := driver.bucket.CompleteMultipartUpload(initMultipartUploadResult, ossParts, oss.WithContext(ctx))
 	return err
 }
 
-func (o *ossFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string) error {
+func (driver *ossFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
 	initMultipartUploadResult := oss.InitiateMultipartUploadResult{
 		Key:      path,
 		UploadID: uploadID,
-		Bucket:   o.bucket.BucketName,
+		Bucket:   driver.bucket.BucketName,
 	}
-	return o.bucket.AbortMultipartUpload(initMultipartUploadResult, oss.WithContext(ctx))
+	return driver.bucket.AbortMultipartUpload(initMultipartUploadResult, oss.WithContext(ctx))
 }
 
-func (o *ossFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadInfo, error) {
-	initMultipartUploadResult, err := o.bucket.ListMultipartUploads(oss.WithContext(ctx))
+func (driver *ossFs) ListMultipartUploads(ctx context.Context, opts ...fs.Option) ([]fs.MultipartUploadInfo, error) {
+	initMultipartUploadResult, err := driver.bucket.ListMultipartUploads(oss.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -117,15 +128,15 @@ func (o *ossFs) ListMultipartUploads(ctx context.Context) ([]fs.MultipartUploadI
 	return uploads, nil
 }
 
-func (o *ossFs) ListUploadedParts(ctx context.Context, path string, uploadID string) ([]fs.MultipartPart, error) {
+func (driver *ossFs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
 	initMultipartUploadResult := oss.InitiateMultipartUploadResult{
 		Key:      path,
 		UploadID: uploadID,
-		Bucket:   o.bucket.BucketName,
+		Bucket:   driver.bucket.BucketName,
 	}
 
 	// 列出已上传的分片
-	lpr, err := o.bucket.ListUploadedParts(initMultipartUploadResult, oss.WithContext(ctx))
+	lpr, err := driver.bucket.ListUploadedParts(initMultipartUploadResult, oss.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}

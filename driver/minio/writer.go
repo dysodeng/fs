@@ -12,23 +12,37 @@ import (
 
 // minioWriter 实现 io.WriteCloser 接口
 type minioWriter struct {
-	ctx     context.Context
-	client  *minio.Client
-	bucket  string
-	path    string
-	buffer  *bytes.Buffer
-	options fs.CreateOptions
+	ctx         context.Context
+	client      *minio.Client
+	bucket      string
+	path        string
+	buffer      *bytes.Buffer
+	metadata    fs.Metadata
+	contentType string
 }
 
-func newMinioWriter(ctx context.Context, client *minio.Client, bucket, path string, options fs.CreateOptions) *minioWriter {
-	return &minioWriter{
-		ctx:     ctx,
-		client:  client,
-		bucket:  bucket,
-		path:    path,
-		buffer:  bytes.NewBuffer(nil),
-		options: options,
+func newMinioWriter(ctx context.Context, client *minio.Client, bucket, path string, opts ...fs.Option) *minioWriter {
+	o := &fs.Options{}
+	for _, opt := range opts {
+		opt(o)
 	}
+
+	writer := &minioWriter{
+		ctx:    ctx,
+		client: client,
+		bucket: bucket,
+		path:   path,
+		buffer: bytes.NewBuffer(nil),
+	}
+
+	if o.ContentType != "" {
+		writer.contentType = o.ContentType
+	}
+	if o.Metadata != nil {
+		writer.metadata = o.Metadata
+	}
+
+	return writer
 }
 
 func (w *minioWriter) Write(p []byte) (n int, err error) {
@@ -48,14 +62,14 @@ func (w *minioWriter) Close() error {
 		opts := minio.PutObjectOptions{}
 
 		// 设置 ContentType
-		if w.options.ContentType != "" {
-			opts.ContentType = w.options.ContentType
+		if w.contentType != "" {
+			opts.ContentType = w.contentType
 		}
 
 		// 处理metadata
-		if w.options.Metadata != nil {
+		if w.metadata != nil {
 			userMetadata := make(map[string]string)
-			for k, v := range w.options.Metadata {
+			for k, v := range w.metadata {
 				userMetadata[k] = fmt.Sprintf("%v", v)
 			}
 			opts.UserMetadata = userMetadata
@@ -79,9 +93,9 @@ type minioReadWriter struct {
 	reader io.ReadCloser
 }
 
-func newMinioReadWriter(ctx context.Context, client *minio.Client, bucket, path string) *minioReadWriter {
+func newMinioReadWriter(ctx context.Context, client *minio.Client, bucket, path string, opts ...fs.Option) *minioReadWriter {
 	return &minioReadWriter{
-		minioWriter: newMinioWriter(ctx, client, bucket, path, fs.CreateOptions{}),
+		minioWriter: newMinioWriter(ctx, client, bucket, path, opts...),
 	}
 }
 
