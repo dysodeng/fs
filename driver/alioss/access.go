@@ -35,10 +35,10 @@ func (driver *ossFs) SignFullUrl(ctx context.Context, path string, opts ...fs.Op
 		return "", err
 	}
 
-	signUrl = strings.Replace(signUrl, "http://", "https://", -1)
+	signUrl = strings.ReplaceAll(signUrl, "http://", "https://")
 
 	if useCdnDomain {
-		signUrl = strings.Replace(signUrl, endpoint, cdnDomain, -1)
+		signUrl = strings.ReplaceAll(signUrl, endpoint, cdnDomain)
 	}
 
 	return signUrl, err

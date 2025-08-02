@@ -217,9 +217,14 @@ func (driver *cosFs) SetMetadata(ctx context.Context, path string, metadata map[
 			XCosMetadataDirective: "Replaced",
 		},
 	}
-	for k, v := range metadata {
+	if metadata != nil {
+		if opt.ObjectCopyHeaderOptions == nil {
+			opt.ObjectCopyHeaderOptions = &cos.ObjectCopyHeaderOptions{}
+		}
 		opt.ObjectCopyHeaderOptions.XCosMetaXXX = &http.Header{}
-		opt.ObjectCopyHeaderOptions.XCosMetaXXX.Set(fmt.Sprintf("x-cos-meta-%s", k), fmt.Sprintf("%v", v))
+		for k, v := range metadata {
+			opt.ObjectCopyHeaderOptions.XCosMetaXXX.Set(fmt.Sprintf("x-cos-meta-%s", k), fmt.Sprintf("%v", v))
+		}
 	}
 
 	sourceURL := driver.config.BucketURL + "/" + path

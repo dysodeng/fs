@@ -45,7 +45,7 @@ func Local() {
 		log.Fatal(err)
 	}
 	data, err := io.ReadAll(reader)
-	reader.Close()
+	_ = reader.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func Local() {
 		log.Fatal(err)
 	}
 	_, err = file.Write([]byte("\n追加的内容"))
-	file.Close()
+	_ = file.Close()
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -43,10 +43,10 @@ func AliOss() {
 	content := []byte("Hello, OSS File System!")
 	_, err = writer.Write(content)
 	if err != nil {
-		writer.Close()
+		_ = writer.Close()
 		log.Fatal(err)
 	}
-	writer.Close()
+	_ = writer.Close()
 
 	// 读取文件
 	reader, err := fs.Open(ctx, "test/hello.txt")
@@ -54,7 +54,7 @@ func AliOss() {
 		log.Fatal(err)
 	}
 	data, err := io.ReadAll(reader)
-	reader.Close()
+	_ = reader.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
