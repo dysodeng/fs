@@ -29,6 +29,14 @@ func (driver *localFs) Upload(ctx context.Context, path string, reader io.Reader
 		opt(options)
 	}
 
+	// 创建目标目录
+	basePath := filepath.Dir(path)
+	if ok, _ := driver.Exists(ctx, basePath); !ok {
+		if err := os.MkdirAll(driver.fullPath(basePath), 0755); err != nil {
+			return err
+		}
+	}
+
 	file, err := driver.Create(ctx, path, opts...)
 	if err != nil {
 		return err
@@ -99,13 +107,15 @@ func (driver *localFs) CompleteMultipartUpload(ctx context.Context, path string,
 		_ = driver.multipartStorage.Delete(uploadID)
 	}()
 
-	// 创建目标文件
-	fullPath := driver.fullPath(path)
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-		return err
+	// 创建目标目录
+	basePath := filepath.Dir(path)
+	if ok, _ := driver.Exists(ctx, basePath); !ok {
+		if err := os.MkdirAll(driver.fullPath(basePath), 0755); err != nil {
+			return err
+		}
 	}
 
-	destFile, err := os.Create(fullPath)
+	destFile, err := os.Create(driver.fullPath(path))
 	if err != nil {
 		return err
 	}
