@@ -47,9 +47,9 @@ func (driver *s3Fs) SignFullUrl(ctx context.Context, path string, opts ...fs.Opt
 		return "", err
 	}
 
-	signUrl := strings.Replace(signResult.URL, "http://", "https://", -1)
+	signUrl := strings.ReplaceAll(signResult.URL, "http://", "https://")
 	if useCdnDomain {
-		signUrl = strings.Replace(signUrl, endpoint, cdnDomain, -1)
+		signUrl = strings.ReplaceAll(signUrl, endpoint, cdnDomain)
 	}
 
 	return signUrl, err
@@ -92,13 +92,13 @@ func (driver *s3Fs) FullUrl(ctx context.Context, path string, opts ...fs.Option)
 			return "", err
 		}
 
-		fullUrl = strings.Replace(signResult.URL, "http://", "https://", -1)
+		fullUrl = strings.ReplaceAll(signResult.URL, "http://", "https://")
 	} else {
 		fullUrl = fmt.Sprintf("%s/%s", cdnDomain, path)
 	}
 
 	if useCdnDomain {
-		fullUrl = strings.Replace(fullUrl, endpoint, cdnDomain, -1)
+		fullUrl = strings.ReplaceAll(fullUrl, endpoint, cdnDomain)
 	}
 
 	return fullUrl, nil
@@ -112,7 +112,7 @@ func (driver *s3Fs) RelativePath(ctx context.Context, fullUrl string, opts ...fs
 
 	if driver.config.UsePathStyle {
 		var originalPath = strings.TrimPrefix(u.Path, "/")
-		originalPath = strings.Replace(originalPath, driver.config.BucketName, "", 1)
+		originalPath = strings.ReplaceAll(originalPath, driver.config.BucketName, "")
 		return strings.TrimPrefix(originalPath, "/"), nil
 	} else {
 		return strings.TrimPrefix(u.Path, "/"), nil

@@ -33,9 +33,9 @@ func (driver *cosFs) SignFullUrl(ctx context.Context, path string, opts ...fs.Op
 		return "", err
 	}
 
-	signUrl := strings.Replace(signUrlResult.String(), "http://", "https://", -1)
+	signUrl := strings.ReplaceAll(signUrlResult.String(), "http://", "https://")
 	if useCdnDomain {
-		signUrl = strings.Replace(signUrl, driver.config.BucketURL, cdnDomain, -1)
+		signUrl = strings.ReplaceAll(signUrl, driver.config.BucketURL, cdnDomain)
 	}
 
 	return signUrl, err
@@ -65,13 +65,13 @@ func (driver *cosFs) FullUrl(ctx context.Context, path string, opts ...fs.Option
 		if err != nil {
 			return "", err
 		}
-		fullUrl = strings.Replace(signUrlResult.String(), "http://", "https://", -1)
+		fullUrl = strings.ReplaceAll(signUrlResult.String(), "http://", "https://")
 	} else {
 		fullUrl = fmt.Sprintf("%s/%s", cdnDomain, path)
 	}
 
 	if useCdnDomain {
-		fullUrl = strings.Replace(fullUrl, driver.config.BucketURL, cdnDomain, -1)
+		fullUrl = strings.ReplaceAll(fullUrl, driver.config.BucketURL, cdnDomain)
 	}
 
 	return fullUrl, nil

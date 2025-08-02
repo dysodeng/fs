@@ -56,14 +56,16 @@ func MinIO() {
 	if err != nil {
 		log.Fatal("写入文件错误：" + err.Error())
 	}
-	writer.Close()
+	_ = writer.Close()
 
 	// 读取文件
 	reader, err := fs.Open(ctx, "test/hello.txt")
 	if err != nil {
 		log.Fatal("读取文件错误：" + err.Error())
 	}
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 
 	data, err := io.ReadAll(reader)
 	if err != nil {

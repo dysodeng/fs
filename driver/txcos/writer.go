@@ -55,12 +55,9 @@ func (w *cosWriter) Close() error {
 		}
 	}
 	if w.metadata != nil {
-		if opt.ObjectPutHeaderOptions == nil {
-			opt.ObjectPutHeaderOptions = &cos.ObjectPutHeaderOptions{}
-		}
-		opt.ObjectPutHeaderOptions.XCosMetaXXX = &http.Header{}
+		opt.XCosMetaXXX = &http.Header{}
 		for k, v := range w.metadata {
-			opt.ObjectPutHeaderOptions.XCosMetaXXX.Set(fmt.Sprintf("x-cos-meta-%s", k), fmt.Sprintf("%v", v))
+			opt.XCosMetaXXX.Set(fmt.Sprintf("x-cos-meta-%s", k), fmt.Sprintf("%v", v))
 		}
 	}
 

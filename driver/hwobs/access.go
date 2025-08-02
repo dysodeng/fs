@@ -41,9 +41,9 @@ func (driver *obsFs) SignFullUrl(ctx context.Context, path string, opts ...fs.Op
 		return "", err
 	}
 
-	signUrl := strings.Replace(strings.Replace(output.SignedUrl, "http://", "https://", -1), ":443", "", -1)
+	signUrl := strings.ReplaceAll(strings.ReplaceAll(output.SignedUrl, "http://", "https://"), ":443", "")
 	if useCdnDomain {
-		signUrl = strings.Replace(signUrl, endpoint, cdnDomain, -1)
+		signUrl = strings.ReplaceAll(signUrl, endpoint, cdnDomain)
 	}
 
 	return signUrl, err
@@ -80,13 +80,13 @@ func (driver *obsFs) FullUrl(ctx context.Context, path string, opts ...fs.Option
 		if err != nil {
 			return "", err
 		}
-		fullUrl = strings.Replace(strings.Replace(output.SignedUrl, "http://", "https://", -1), ":443", "", -1)
+		fullUrl = strings.ReplaceAll(strings.ReplaceAll(output.SignedUrl, "http://", "https://"), ":443", "")
 	} else {
 		fullUrl = fmt.Sprintf("%s/%s", cdnDomain, path)
 	}
 
 	if useCdnDomain {
-		fullUrl = strings.Replace(fullUrl, endpoint, cdnDomain, -1)
+		fullUrl = strings.ReplaceAll(fullUrl, endpoint, cdnDomain)
 	}
 
 	return fullUrl, nil

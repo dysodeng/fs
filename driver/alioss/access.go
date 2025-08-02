@@ -70,13 +70,13 @@ func (driver *ossFs) FullUrl(ctx context.Context, path string, opts ...fs.Option
 		if err != nil {
 			return "", err
 		}
-		fullUrl = strings.Replace(fullUrl, "http://", "https://", -1)
+		fullUrl = strings.ReplaceAll(fullUrl, "http://", "https://")
 	} else {
 		fullUrl = fmt.Sprintf("%s/%s", cdnDomain, path)
 	}
 
 	if useCdnDomain {
-		fullUrl = strings.Replace(fullUrl, endpoint, cdnDomain, -1)
+		fullUrl = strings.ReplaceAll(fullUrl, endpoint, cdnDomain)
 	}
 
 	return fullUrl, nil

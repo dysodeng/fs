@@ -34,9 +34,9 @@ func (driver *minioFs) SignFullUrl(ctx context.Context, path string, opts ...fs.
 		return "", err
 	}
 
-	fullUrl := strings.Replace(signUrl.String(), "http://", "https://", -1)
+	fullUrl := strings.ReplaceAll(signUrl.String(), "http://", "https://")
 	if useCdnDomain {
-		fullUrl = strings.Replace(fullUrl, endpoint, cdnDomain, -1)
+		fullUrl = strings.ReplaceAll(fullUrl, endpoint, cdnDomain)
 	}
 
 	return fullUrl, nil
@@ -67,14 +67,14 @@ func (driver *minioFs) FullUrl(ctx context.Context, path string, opts ...fs.Opti
 			return "", err
 		}
 		if driver.config.UseSSL {
-			fullUrl = strings.Replace(signUrl.String(), "http://", "https://", -1)
+			fullUrl = strings.ReplaceAll(signUrl.String(), "http://", "https://")
 		}
 	} else {
 		fullUrl = fmt.Sprintf("%s/%s", cdnDomain, path)
 	}
 
 	if useCdnDomain {
-		fullUrl = strings.Replace(fullUrl, endpoint, cdnDomain, -1)
+		fullUrl = strings.ReplaceAll(fullUrl, endpoint, cdnDomain)
 	}
 
 	return fullUrl, nil

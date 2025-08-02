@@ -153,7 +153,7 @@ func (driver *cosFs) Remove(ctx context.Context, path string, opts ...fs.Option)
 }
 
 func (driver *cosFs) Copy(ctx context.Context, src, dst string, opts ...fs.Option) error {
-	sourceURL := strings.Replace(driver.config.BucketURL, "https://", "", -1) + "/" + src
+	sourceURL := strings.ReplaceAll(driver.config.BucketURL, "https://", "") + "/" + src
 	_, _, err := driver.client.Object.Copy(ctx, dst, sourceURL, nil)
 	return err
 }
@@ -218,12 +218,9 @@ func (driver *cosFs) SetMetadata(ctx context.Context, path string, metadata map[
 		},
 	}
 	if metadata != nil {
-		if opt.ObjectCopyHeaderOptions == nil {
-			opt.ObjectCopyHeaderOptions = &cos.ObjectCopyHeaderOptions{}
-		}
-		opt.ObjectCopyHeaderOptions.XCosMetaXXX = &http.Header{}
+		opt.XCosMetaXXX = &http.Header{}
 		for k, v := range metadata {
-			opt.ObjectCopyHeaderOptions.XCosMetaXXX.Set(fmt.Sprintf("x-cos-meta-%s", k), fmt.Sprintf("%v", v))
+			opt.XCosMetaXXX.Set(fmt.Sprintf("x-cos-meta-%s", k), fmt.Sprintf("%v", v))
 		}
 	}
 
