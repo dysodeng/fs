@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+
 	"github.com/dysodeng/fs"
 )
 
@@ -23,6 +24,7 @@ type Config struct {
 	AccessKeyID     string        // AccessKey
 	SecretAccessKey string        // SecretKey
 	BucketName      string        // 存储桶名称
+	SubPath         string        // 子目录路径
 	UsePathStyle    bool          // 是否使用路径样式访问
 	AccessMode      fs.AccessMode // 访问模式
 }
@@ -65,6 +67,7 @@ func New(conf Config) (fs.FileSystem, error) {
 }
 
 func (driver *s3Fs) List(ctx context.Context, path string, opts ...fs.Option) ([]fs.FileInfo, error) {
+	path = driver.path(path)
 	var fileInfos []fs.FileInfo
 	prefix := strings.TrimRight(path, "/")
 	if prefix != "" {
@@ -106,6 +109,7 @@ func (driver *s3Fs) MakeDir(_ context.Context, _ string, _ os.FileMode, opts ...
 }
 
 func (driver *s3Fs) RemoveDir(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	prefix := strings.TrimRight(path, "/") + "/"
 
 	input := &s3.ListObjectsV2Input{
@@ -134,10 +138,12 @@ func (driver *s3Fs) RemoveDir(ctx context.Context, path string, opts ...fs.Optio
 }
 
 func (driver *s3Fs) Create(ctx context.Context, path string, opts ...fs.Option) (io.WriteCloser, error) {
+	path = driver.path(path)
 	return newS3Writer(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 }
 
 func (driver *s3Fs) Open(ctx context.Context, path string, opts ...fs.Option) (io.ReadCloser, error) {
+	path = driver.path(path)
 	output, err := driver.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(driver.config.BucketName),
 		Key:    aws.String(path),
@@ -150,10 +156,10 @@ func (driver *s3Fs) Open(ctx context.Context, path string, opts ...fs.Option) (i
 
 func (driver *s3Fs) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode, opts ...fs.Option) (io.ReadWriteCloser, error) {
 	if flag&os.O_RDWR != 0 {
-		return newS3ReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
+		return newS3ReadWriter(ctx, driver.client, driver.config.BucketName, driver.path(path), opts...), nil
 	}
 	if flag&os.O_WRONLY != 0 {
-		return newS3ReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
+		return newS3ReadWriter(ctx, driver.client, driver.config.BucketName, driver.path(path), opts...), nil
 	}
 	reader, err := driver.Open(ctx, path, opts...)
 	if err != nil {
@@ -163,6 +169,7 @@ func (driver *s3Fs) OpenFile(ctx context.Context, path string, flag int, perm os
 }
 
 func (driver *s3Fs) Remove(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	_, err := driver.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(driver.config.BucketName),
 		Key:    aws.String(path),
@@ -171,6 +178,8 @@ func (driver *s3Fs) Remove(ctx context.Context, path string, opts ...fs.Option) 
 }
 
 func (driver *s3Fs) Copy(ctx context.Context, src, dst string, opts ...fs.Option) error {
+	src = driver.path(src)
+	dst = driver.path(dst)
 	_, err := driver.client.CopyObject(ctx, &s3.CopyObjectInput{
 		Bucket:     aws.String(driver.config.BucketName),
 		Key:        aws.String(dst),
@@ -191,6 +200,7 @@ func (driver *s3Fs) Rename(ctx context.Context, oldPath, newPath string, opts ..
 }
 
 func (driver *s3Fs) Stat(ctx context.Context, path string, opts ...fs.Option) (fs.FileInfo, error) {
+	path = driver.path(path)
 	output, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(driver.config.BucketName),
 		Key:    aws.String(path),
@@ -209,7 +219,7 @@ func (driver *s3Fs) Stat(ctx context.Context, path string, opts ...fs.Option) (f
 func (driver *s3Fs) GetMimeType(ctx context.Context, path string, opts ...fs.Option) (string, error) {
 	output, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(driver.config.BucketName),
-		Key:    aws.String(path),
+		Key:    aws.String(driver.path(path)),
 	})
 	if err != nil {
 		return "", err
@@ -240,7 +250,7 @@ func (driver *s3Fs) GetMimeType(ctx context.Context, path string, opts ...fs.Opt
 func (driver *s3Fs) SetMetadata(ctx context.Context, path string, metadata map[string]any, opts ...fs.Option) error {
 	input := &s3.CopyObjectInput{
 		Bucket:     aws.String(driver.config.BucketName),
-		Key:        aws.String(path + "_tmp"),
+		Key:        aws.String(driver.path(path + "_tmp")),
 		CopySource: aws.String(fmt.Sprintf("%s/%s", driver.config.BucketName, path)),
 		Metadata:   make(map[string]string),
 	}
@@ -258,6 +268,7 @@ func (driver *s3Fs) SetMetadata(ctx context.Context, path string, metadata map[s
 }
 
 func (driver *s3Fs) GetMetadata(ctx context.Context, path string, opts ...fs.Option) (map[string]any, error) {
+	path = driver.path(path)
 	output, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(driver.config.BucketName),
 		Key:    aws.String(path),
@@ -281,6 +292,7 @@ func (driver *s3Fs) Exists(ctx context.Context, path string, opts ...fs.Option) 
 }
 
 func (driver *s3Fs) IsDir(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	path = strings.TrimRight(path, "/") + "/"
 	input := &s3.ListObjectsV2Input{
 		Bucket:    aws.String(driver.config.BucketName),
@@ -297,6 +309,7 @@ func (driver *s3Fs) IsDir(ctx context.Context, path string, opts ...fs.Option) (
 }
 
 func (driver *s3Fs) IsFile(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	_, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(driver.config.BucketName),
 		Key:    aws.String(path),
@@ -309,4 +322,11 @@ func (driver *s3Fs) IsFile(ctx context.Context, path string, opts ...fs.Option) 
 		return false, err
 	}
 	return true, nil
+}
+
+func (driver *s3Fs) path(path string) string {
+	if driver.config.SubPath != "" {
+		return strings.Trim(driver.config.SubPath, "/") + "/" + path
+	}
+	return path
 }

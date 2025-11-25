@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/dysodeng/fs"
 )
@@ -13,11 +14,13 @@ import (
 // localFs 本地文件系统
 type localFs struct {
 	rootPath         string
+	subPath          string
 	multipartStorage MultipartStorage
 }
 
 type Config struct {
-	RootPath         string
+	RootPath         string // 根目录路径
+	SubPath          string // 子目录路径
 	MultipartStorage MultipartStorage
 }
 
@@ -27,13 +30,9 @@ func New(conf Config) (fs.FileSystem, error) {
 	}
 	return &localFs{
 		rootPath:         conf.RootPath,
+		subPath:          conf.SubPath,
 		multipartStorage: conf.MultipartStorage,
 	}, nil
-}
-
-// fullPath 获取完整路径
-func (driver *localFs) fullPath(path string, opts ...fs.Option) string {
-	return filepath.Join(driver.rootPath, path)
 }
 
 func (driver *localFs) List(_ context.Context, path string, opts ...fs.Option) ([]fs.FileInfo, error) {
@@ -207,4 +206,16 @@ func (driver *localFs) IsFile(_ context.Context, path string, opts ...fs.Option)
 		return false, err
 	}
 	return !info.IsDir(), nil
+}
+
+// fullPath 获取完整路径
+func (driver *localFs) fullPath(path string, opts ...fs.Option) string {
+	return filepath.Join(driver.rootPath, driver.path(path))
+}
+
+func (driver *localFs) path(path string) string {
+	if driver.subPath != "" {
+		return strings.Trim(driver.subPath, "/") + "/" + path
+	}
+	return path
 }

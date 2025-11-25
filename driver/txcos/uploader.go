@@ -29,6 +29,7 @@ func (driver *cosFs) Upload(ctx context.Context, path string, reader io.Reader, 
 }
 
 func (driver *cosFs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	o := &fs.Options{}
 	for _, opt := range opts {
 		opt(o)
@@ -45,6 +46,7 @@ func (driver *cosFs) InitMultipartUpload(ctx context.Context, path string, opts 
 }
 
 func (driver *cosFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	res, err := driver.client.Object.UploadPart(ctx, path, uploadID, partNumber, data, nil)
 	if err != nil {
 		return "", err
@@ -53,6 +55,7 @@ func (driver *cosFs) UploadPart(ctx context.Context, path string, uploadID strin
 }
 
 func (driver *cosFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
+	path = driver.path(path)
 	opt := &cos.CompleteMultipartUploadOptions{
 		Parts: make([]cos.Object, len(parts)),
 	}
@@ -67,6 +70,7 @@ func (driver *cosFs) CompleteMultipartUpload(ctx context.Context, path string, u
 }
 
 func (driver *cosFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
+	path = driver.path(path)
 	_, err := driver.client.Object.AbortMultipartUpload(ctx, path, uploadID)
 	return err
 }
@@ -91,6 +95,7 @@ func (driver *cosFs) ListMultipartUploads(ctx context.Context, opts ...fs.Option
 }
 
 func (driver *cosFs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
+	path = driver.path(path)
 	opt := &cos.ObjectListPartsOptions{}
 	v, _, err := driver.client.Object.ListParts(ctx, path, uploadID, opt)
 	if err != nil {

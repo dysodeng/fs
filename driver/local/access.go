@@ -16,7 +16,7 @@ func (driver *localFs) SignFullUrl(ctx context.Context, path string, opts ...fs.
 	}
 
 	if o.CdnDomain != "" {
-		return fmt.Sprintf("%s/%s", o.CdnDomain, path), nil
+		return fmt.Sprintf("%s/%s", o.CdnDomain, driver.path(path)), nil
 	}
 
 	return path, nil
@@ -29,7 +29,7 @@ func (driver *localFs) FullUrl(ctx context.Context, path string, opts ...fs.Opti
 	}
 
 	if o.CdnDomain != "" {
-		return fmt.Sprintf("%s/%s", o.CdnDomain, path), nil
+		return fmt.Sprintf("%s/%s", o.CdnDomain, driver.path(path)), nil
 	}
 
 	return path, nil

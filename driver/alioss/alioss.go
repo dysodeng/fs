@@ -19,6 +19,7 @@ type Config struct {
 	AccessKeyID     string        // AccessKey
 	SecretAccessKey string        // SecretKey
 	BucketName      string        // 存储桶名称
+	SubPath         string        // 子目录路径
 	AccessMode      fs.AccessMode // 访问模式
 }
 
@@ -50,6 +51,7 @@ func New(config Config) (fs.FileSystem, error) {
 }
 
 func (driver *ossFs) List(ctx context.Context, path string, opts ...fs.Option) ([]fs.FileInfo, error) {
+	path = driver.path(path)
 	var fileInfos []fs.FileInfo
 	prefix := strings.TrimRight(path, "/")
 	if prefix != "" {
@@ -95,6 +97,7 @@ func (driver *ossFs) MakeDir(_ context.Context, _ string, _ os.FileMode, opts ..
 }
 
 func (driver *ossFs) RemoveDir(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	prefix := strings.TrimRight(path, "/") + "/"
 	marker := ""
 	for {
@@ -119,19 +122,21 @@ func (driver *ossFs) RemoveDir(ctx context.Context, path string, opts ...fs.Opti
 }
 
 func (driver *ossFs) Create(ctx context.Context, path string, opts ...fs.Option) (io.WriteCloser, error) {
+	path = driver.path(path)
 	return newOssWriter(ctx, driver.bucket, path, opts...), nil
 }
 
 func (driver *ossFs) Open(ctx context.Context, path string, opts ...fs.Option) (io.ReadCloser, error) {
+	path = driver.path(path)
 	return driver.bucket.GetObject(path, oss.WithContext(ctx))
 }
 
 func (driver *ossFs) OpenFile(ctx context.Context, path string, flag int, _ os.FileMode, opts ...fs.Option) (io.ReadWriteCloser, error) {
 	if flag&os.O_RDWR != 0 {
-		return newOssReadWriter(ctx, driver.bucket, path, opts...), nil
+		return newOssReadWriter(ctx, driver.bucket, driver.path(path), opts...), nil
 	}
 	if flag&os.O_WRONLY != 0 {
-		return newOssReadWriter(ctx, driver.bucket, path, opts...), nil
+		return newOssReadWriter(ctx, driver.bucket, driver.path(path), opts...), nil
 	}
 	reader, err := driver.Open(ctx, path, opts...)
 	if err != nil {
@@ -141,10 +146,12 @@ func (driver *ossFs) OpenFile(ctx context.Context, path string, flag int, _ os.F
 }
 
 func (driver *ossFs) Remove(ctx context.Context, path string, opts ...fs.Option) error {
-	return driver.bucket.DeleteObject(path, oss.WithContext(ctx))
+	return driver.bucket.DeleteObject(driver.path(path), oss.WithContext(ctx))
 }
 
 func (driver *ossFs) Copy(ctx context.Context, src, dst string, opts ...fs.Option) error {
+	src = driver.path(src)
+	dst = driver.path(dst)
 	_, err := driver.bucket.CopyObject(src, dst, oss.WithContext(ctx))
 	return err
 }
@@ -161,6 +168,7 @@ func (driver *ossFs) Rename(ctx context.Context, oldPath, newPath string, opts .
 }
 
 func (driver *ossFs) Stat(ctx context.Context, path string, opts ...fs.Option) (fs.FileInfo, error) {
+	path = driver.path(path)
 	header, err := driver.bucket.GetObjectMeta(path, oss.WithContext(ctx))
 	if err != nil {
 		return nil, err
@@ -214,7 +222,7 @@ func (driver *ossFs) SetMetadata(ctx context.Context, path string, metadata map[
 	}
 
 	// OSS中需要通过复制对象来更新元数据
-	_, err := driver.bucket.CopyObject(path, path+"_tmp", options...)
+	_, err := driver.bucket.CopyObject(driver.path(path), driver.path(path+"_tmp"), options...)
 	if err != nil {
 		return err
 	}
@@ -223,6 +231,7 @@ func (driver *ossFs) SetMetadata(ctx context.Context, path string, metadata map[
 }
 
 func (driver *ossFs) GetMetadata(ctx context.Context, path string, opts ...fs.Option) (map[string]any, error) {
+	path = driver.path(path)
 	header, err := driver.bucket.GetObjectMeta(path, oss.WithContext(ctx))
 	if err != nil {
 		return nil, err
@@ -249,6 +258,7 @@ func (driver *ossFs) Exists(ctx context.Context, path string, opts ...fs.Option)
 }
 
 func (driver *ossFs) IsDir(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	prefix := strings.TrimRight(path, "/") + "/"
 	lsRes, err := driver.bucket.ListObjects(oss.Prefix(prefix), oss.MaxKeys(1), oss.WithContext(ctx))
 	if err != nil {
@@ -258,9 +268,17 @@ func (driver *ossFs) IsDir(ctx context.Context, path string, opts ...fs.Option) 
 }
 
 func (driver *ossFs) IsFile(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	exist, err := driver.bucket.IsObjectExist(path, oss.WithContext(ctx))
 	if err != nil {
 		return false, err
 	}
 	return exist, nil
+}
+
+func (driver *ossFs) path(path string) string {
+	if driver.config.SubPath != "" {
+		return strings.Trim(driver.config.SubPath, "/") + "/" + path
+	}
+	return path
 }

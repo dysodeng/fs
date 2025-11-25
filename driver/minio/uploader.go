@@ -29,6 +29,7 @@ func (driver *minioFs) Upload(ctx context.Context, path string, reader io.Reader
 }
 
 func (driver *minioFs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	o := &fs.Options{}
 	for _, opt := range opts {
 		opt(o)
@@ -45,6 +46,7 @@ func (driver *minioFs) InitMultipartUpload(ctx context.Context, path string, opt
 }
 
 func (driver *minioFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	// 计算数据大小
 	var size int64
 	if seeker, ok := data.(io.Seeker); ok {
@@ -77,6 +79,7 @@ func (driver *minioFs) UploadPart(ctx context.Context, path string, uploadID str
 }
 
 func (driver *minioFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
+	path = driver.path(path)
 	// 转换分片信息格式
 	completeParts := make([]minio.CompletePart, len(parts))
 	for i, part := range parts {
@@ -91,6 +94,7 @@ func (driver *minioFs) CompleteMultipartUpload(ctx context.Context, path string,
 }
 
 func (driver *minioFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
+	path = driver.path(path)
 	return driver.core.AbortMultipartUpload(ctx, driver.config.BucketName, path, uploadID)
 }
 
@@ -110,6 +114,8 @@ func (driver *minioFs) ListMultipartUploads(ctx context.Context, opts ...fs.Opti
 }
 
 func (driver *minioFs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
+	path = driver.path(path)
+
 	var parts []fs.MultipartPart
 
 	// 初始化参数

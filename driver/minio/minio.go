@@ -20,6 +20,7 @@ type Config struct {
 	SecretAccessKey string        // SecretKey
 	UseSSL          bool          // 是否使用SSL
 	BucketName      string        // 存储桶名称
+	SubPath         string        // 子目录路径
 	Location        string        // 区域
 	AccessMode      fs.AccessMode // 访问模式
 }
@@ -64,6 +65,7 @@ func New(config Config) (fs.FileSystem, error) {
 }
 
 func (driver *minioFs) List(ctx context.Context, path string, opts ...fs.Option) ([]fs.FileInfo, error) {
+	path = driver.path(path)
 	var fileInfos []fs.FileInfo
 
 	// 使用ListObjects来获取指定前缀的对象
@@ -88,6 +90,7 @@ func (driver *minioFs) MakeDir(_ context.Context, _ string, _ os.FileMode, opts 
 }
 
 func (driver *minioFs) RemoveDir(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	options := minio.ListObjectsOptions{
 		Prefix:    filepath.Clean(path) + "/",
 		Recursive: true,
@@ -104,21 +107,23 @@ func (driver *minioFs) RemoveDir(ctx context.Context, path string, opts ...fs.Op
 }
 
 func (driver *minioFs) Create(ctx context.Context, path string, opts ...fs.Option) (io.WriteCloser, error) {
+	path = driver.path(path)
 	return newMinioWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 }
 
 func (driver *minioFs) Open(ctx context.Context, path string, opts ...fs.Option) (io.ReadCloser, error) {
+	path = driver.path(path)
 	return driver.client.GetObject(ctx, driver.config.BucketName, path, minio.GetObjectOptions{})
 }
 
 func (driver *minioFs) OpenFile(ctx context.Context, path string, flag int, _ os.FileMode, opts ...fs.Option) (io.ReadWriteCloser, error) {
 	// MinIO不支持追加模式，这里实现读写功能
 	if flag&os.O_RDWR != 0 {
-		return newMinioReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
+		return newMinioReadWriter(ctx, driver.client, driver.config.BucketName, driver.path(path), opts...), nil
 	}
 	if flag&os.O_WRONLY != 0 {
 		// 对于只写模式，也返回 ReadWriter，但读取时会返回错误
-		return newMinioReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
+		return newMinioReadWriter(ctx, driver.client, driver.config.BucketName, driver.path(path), opts...), nil
 	}
 	// 对于只读模式，包装成 ReadWriteCloser
 	reader, err := driver.Open(ctx, path, opts...)
@@ -129,10 +134,13 @@ func (driver *minioFs) OpenFile(ctx context.Context, path string, flag int, _ os
 }
 
 func (driver *minioFs) Remove(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	return driver.client.RemoveObject(ctx, driver.config.BucketName, path, minio.RemoveObjectOptions{})
 }
 
 func (driver *minioFs) Copy(ctx context.Context, src, dst string, opts ...fs.Option) error {
+	src = driver.path(src)
+	dst = driver.path(dst)
 	_, err := driver.client.CopyObject(ctx,
 		minio.CopyDestOptions{
 			Bucket: driver.config.BucketName,
@@ -158,6 +166,7 @@ func (driver *minioFs) Rename(ctx context.Context, oldPath, newPath string, opts
 }
 
 func (driver *minioFs) Stat(ctx context.Context, path string, opts ...fs.Option) (fs.FileInfo, error) {
+	path = driver.path(path)
 	info, err := driver.client.StatObject(ctx, driver.config.BucketName, path, minio.StatObjectOptions{})
 	if err != nil {
 		return nil, err
@@ -166,7 +175,7 @@ func (driver *minioFs) Stat(ctx context.Context, path string, opts ...fs.Option)
 }
 
 func (driver *minioFs) GetMimeType(ctx context.Context, path string, opts ...fs.Option) (string, error) {
-	stat, err := driver.client.StatObject(ctx, driver.config.BucketName, path, minio.StatObjectOptions{})
+	stat, err := driver.client.StatObject(ctx, driver.config.BucketName, driver.path(path), minio.StatObjectOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -204,13 +213,13 @@ func (driver *minioFs) SetMetadata(ctx context.Context, path string, metadata ma
 	_, err := driver.client.CopyObject(ctx,
 		minio.CopyDestOptions{
 			Bucket:          driver.config.BucketName,
-			Object:          path + "_tmp",
+			Object:          driver.path(path + "_tmp"),
 			ReplaceMetadata: true,
 			UserMetadata:    strMetadata,
 		},
 		minio.CopySrcOptions{
 			Bucket: driver.config.BucketName,
-			Object: path,
+			Object: driver.path(path),
 		})
 	if err != nil {
 		return err
@@ -219,6 +228,7 @@ func (driver *minioFs) SetMetadata(ctx context.Context, path string, metadata ma
 }
 
 func (driver *minioFs) GetMetadata(ctx context.Context, path string, opts ...fs.Option) (map[string]any, error) {
+	path = driver.path(path)
 	info, err := driver.client.StatObject(ctx, driver.config.BucketName, path, minio.StatObjectOptions{})
 	if err != nil {
 		return nil, err
@@ -242,6 +252,7 @@ func (driver *minioFs) Exists(ctx context.Context, path string, opts ...fs.Optio
 }
 
 func (driver *minioFs) IsDir(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	options := minio.ListObjectsOptions{
 		Prefix:    strings.TrimRight(path, "/") + "/",
 		Recursive: false,
@@ -260,6 +271,7 @@ func (driver *minioFs) IsDir(ctx context.Context, path string, opts ...fs.Option
 }
 
 func (driver *minioFs) IsFile(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	_, err := driver.client.StatObject(ctx, driver.config.BucketName, path, minio.StatObjectOptions{})
 	if err == nil {
 		return true, nil
@@ -268,4 +280,11 @@ func (driver *minioFs) IsFile(ctx context.Context, path string, opts ...fs.Optio
 		return false, nil
 	}
 	return false, err
+}
+
+func (driver *minioFs) path(path string) string {
+	if driver.config.SubPath != "" {
+		return strings.Trim(driver.config.SubPath, "/") + "/" + path
+	}
+	return path
 }

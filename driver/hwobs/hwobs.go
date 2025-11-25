@@ -18,6 +18,7 @@ type Config struct {
 	AccessKeyID     string        // AccessKey
 	SecretAccessKey string        // SecretKey
 	BucketName      string        // 存储桶名称
+	SubPath         string        // 子目录路径
 	AccessMode      fs.AccessMode // 访问模式
 }
 
@@ -41,6 +42,7 @@ func New(config Config) (fs.FileSystem, error) {
 }
 
 func (driver *obsFs) List(ctx context.Context, path string, opts ...fs.Option) ([]fs.FileInfo, error) {
+	path = driver.path(path)
 	var fileInfos []fs.FileInfo
 	prefix := strings.TrimRight(path, "/")
 	if prefix != "" {
@@ -87,6 +89,7 @@ func (driver *obsFs) MakeDir(ctx context.Context, path string, perm os.FileMode,
 }
 
 func (driver *obsFs) RemoveDir(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	prefix := strings.TrimRight(path, "/") + "/"
 	marker := ""
 	for {
@@ -120,10 +123,12 @@ func (driver *obsFs) RemoveDir(ctx context.Context, path string, opts ...fs.Opti
 }
 
 func (driver *obsFs) Create(ctx context.Context, path string, opts ...fs.Option) (io.WriteCloser, error) {
+	path = driver.path(path)
 	return newObsWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
 }
 
 func (driver *obsFs) Open(ctx context.Context, path string, opts ...fs.Option) (io.ReadCloser, error) {
+	path = driver.path(path)
 	input := &obs.GetObjectInput{}
 	input.Bucket = driver.config.BucketName
 	input.Key = path
@@ -136,7 +141,7 @@ func (driver *obsFs) Open(ctx context.Context, path string, opts ...fs.Option) (
 
 func (driver *obsFs) OpenFile(ctx context.Context, path string, flag int, perm os.FileMode, opts ...fs.Option) (io.ReadWriteCloser, error) {
 	if flag&os.O_RDWR != 0 {
-		return newObsReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
+		return newObsReadWriter(ctx, driver.client, driver.config.BucketName, driver.path(path), opts...), nil
 	}
 	if flag&os.O_WRONLY != 0 {
 		return newObsReadWriter(ctx, driver.client, driver.config.BucketName, path, opts...), nil
@@ -149,6 +154,7 @@ func (driver *obsFs) OpenFile(ctx context.Context, path string, flag int, perm o
 }
 
 func (driver *obsFs) Remove(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	_, err := driver.client.DeleteObject(&obs.DeleteObjectInput{
 		Bucket: driver.config.BucketName,
 		Key:    path,
@@ -157,6 +163,8 @@ func (driver *obsFs) Remove(ctx context.Context, path string, opts ...fs.Option)
 }
 
 func (driver *obsFs) Copy(ctx context.Context, src, dst string, opts ...fs.Option) error {
+	src = driver.path(src)
+	dst = driver.path(dst)
 	input := &obs.CopyObjectInput{}
 	input.Bucket = driver.config.BucketName
 	input.Key = dst
@@ -178,6 +186,7 @@ func (driver *obsFs) Rename(ctx context.Context, oldPath, newPath string, opts .
 }
 
 func (driver *obsFs) Stat(ctx context.Context, path string, opts ...fs.Option) (fs.FileInfo, error) {
+	path = driver.path(path)
 	input := &obs.GetObjectMetadataInput{
 		Bucket: driver.config.BucketName,
 		Key:    path,
@@ -197,7 +206,7 @@ func (driver *obsFs) Stat(ctx context.Context, path string, opts ...fs.Option) (
 func (driver *obsFs) GetMimeType(ctx context.Context, path string, opts ...fs.Option) (string, error) {
 	input := &obs.GetObjectMetadataInput{
 		Bucket: driver.config.BucketName,
-		Key:    path,
+		Key:    driver.path(path),
 	}
 	output, err := driver.client.GetObjectMetadata(input)
 	if err != nil {
@@ -229,7 +238,7 @@ func (driver *obsFs) GetMimeType(ctx context.Context, path string, opts ...fs.Op
 func (driver *obsFs) SetMetadata(ctx context.Context, path string, metadata map[string]any, opts ...fs.Option) error {
 	input := &obs.CopyObjectInput{}
 	input.Bucket = driver.config.BucketName
-	input.Key = path
+	input.Key = driver.path(path)
 	input.CopySourceBucket = driver.config.BucketName
 	input.CopySourceKey = path + "_tmp"
 
@@ -247,6 +256,7 @@ func (driver *obsFs) SetMetadata(ctx context.Context, path string, metadata map[
 }
 
 func (driver *obsFs) GetMetadata(ctx context.Context, path string, opts ...fs.Option) (map[string]any, error) {
+	path = driver.path(path)
 	input := &obs.GetObjectMetadataInput{
 		Bucket: driver.config.BucketName,
 		Key:    path,
@@ -271,7 +281,7 @@ func (driver *obsFs) Exists(ctx context.Context, path string, opts ...fs.Option)
 }
 
 func (driver *obsFs) IsDir(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
-	path = strings.TrimRight(path, "/") + "/"
+	path = strings.TrimRight(driver.path(path), "/") + "/"
 	input := &obs.ListObjectsInput{
 		Bucket: driver.config.BucketName,
 	}
@@ -286,6 +296,7 @@ func (driver *obsFs) IsDir(ctx context.Context, path string, opts ...fs.Option) 
 }
 
 func (driver *obsFs) IsFile(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	_, err := driver.client.GetObjectMetadata(&obs.GetObjectMetadataInput{
 		Bucket: driver.config.BucketName,
 		Key:    path,
@@ -298,4 +309,11 @@ func (driver *obsFs) IsFile(ctx context.Context, path string, opts ...fs.Option)
 		return false, err
 	}
 	return true, nil
+}
+
+func (driver *obsFs) path(path string) string {
+	if driver.config.SubPath != "" {
+		return strings.Trim(driver.config.SubPath, "/") + "/" + path
+	}
+	return path
 }

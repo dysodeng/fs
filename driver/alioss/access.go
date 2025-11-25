@@ -12,6 +12,7 @@ import (
 )
 
 func (driver *ossFs) SignFullUrl(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	o := &fs.Options{}
 	for _, opt := range opts {
 		opt(o)
@@ -45,6 +46,7 @@ func (driver *ossFs) SignFullUrl(ctx context.Context, path string, opts ...fs.Op
 }
 
 func (driver *ossFs) FullUrl(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	o := &fs.Options{}
 	for _, opt := range opts {
 		opt(o)

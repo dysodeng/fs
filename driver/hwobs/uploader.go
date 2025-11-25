@@ -28,6 +28,7 @@ func (driver *obsFs) Upload(ctx context.Context, path string, reader io.Reader, 
 }
 
 func (driver *obsFs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	o := &fs.Options{}
 	for _, opt := range opts {
 		opt(o)
@@ -48,6 +49,7 @@ func (driver *obsFs) InitMultipartUpload(ctx context.Context, path string, opts 
 }
 
 func (driver *obsFs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	input := &obs.UploadPartInput{
 		Bucket:     driver.config.BucketName,
 		Key:        path,
@@ -63,6 +65,7 @@ func (driver *obsFs) UploadPart(ctx context.Context, path string, uploadID strin
 }
 
 func (driver *obsFs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
+	path = driver.path(path)
 	obsParts := make([]obs.Part, len(parts))
 	for i, part := range parts {
 		obsParts[i] = obs.Part{
@@ -81,6 +84,7 @@ func (driver *obsFs) CompleteMultipartUpload(ctx context.Context, path string, u
 }
 
 func (driver *obsFs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
+	path = driver.path(path)
 	input := &obs.AbortMultipartUploadInput{
 		Bucket:   driver.config.BucketName,
 		Key:      path,
@@ -112,6 +116,7 @@ func (driver *obsFs) ListMultipartUploads(ctx context.Context, opts ...fs.Option
 }
 
 func (driver *obsFs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
+	path = driver.path(path)
 	input := &obs.ListPartsInput{
 		Bucket:   driver.config.BucketName,
 		Key:      path,

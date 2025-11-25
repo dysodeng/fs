@@ -30,6 +30,7 @@ func (driver *s3Fs) Upload(ctx context.Context, path string, reader io.Reader, o
 }
 
 func (driver *s3Fs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	o := &fs.Options{}
 	for _, opt := range opts {
 		opt(o)
@@ -49,6 +50,7 @@ func (driver *s3Fs) InitMultipartUpload(ctx context.Context, path string, opts .
 }
 
 func (driver *s3Fs) UploadPart(ctx context.Context, path string, uploadID string, partNumber int, data io.Reader, opts ...fs.Option) (string, error) {
+	path = driver.path(path)
 	input := &s3.UploadPartInput{
 		Bucket:     aws.String(driver.config.BucketName),
 		Key:        aws.String(path),
@@ -64,6 +66,7 @@ func (driver *s3Fs) UploadPart(ctx context.Context, path string, uploadID string
 }
 
 func (driver *s3Fs) CompleteMultipartUpload(ctx context.Context, path string, uploadID string, parts []fs.MultipartPart, opts ...fs.Option) error {
+	path = driver.path(path)
 	completedParts := make([]types.CompletedPart, len(parts))
 	for i, part := range parts {
 		completedParts[i] = types.CompletedPart{
@@ -82,6 +85,7 @@ func (driver *s3Fs) CompleteMultipartUpload(ctx context.Context, path string, up
 }
 
 func (driver *s3Fs) AbortMultipartUpload(ctx context.Context, path string, uploadID string, opts ...fs.Option) error {
+	path = driver.path(path)
 	input := &s3.AbortMultipartUploadInput{
 		Bucket:   aws.String(driver.config.BucketName),
 		Key:      aws.String(path),
@@ -113,6 +117,7 @@ func (driver *s3Fs) ListMultipartUploads(ctx context.Context, opts ...fs.Option)
 }
 
 func (driver *s3Fs) ListUploadedParts(ctx context.Context, path string, uploadID string, opts ...fs.Option) ([]fs.MultipartPart, error) {
+	path = driver.path(path)
 	input := &s3.ListPartsInput{
 		Bucket:   aws.String(driver.config.BucketName),
 		Key:      aws.String(path),

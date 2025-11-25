@@ -17,6 +17,7 @@ type Config struct {
 	BucketURL  string        // 存储桶URL
 	SecretID   string        // 密钥ID
 	SecretKey  string        // 密钥Key
+	SubPath    string        // 子目录路径
 	AccessMode fs.AccessMode // 访问模式
 }
 
@@ -47,6 +48,7 @@ func New(config Config) (fs.FileSystem, error) {
 }
 
 func (driver *cosFs) List(ctx context.Context, path string, opts ...fs.Option) ([]fs.FileInfo, error) {
+	path = driver.path(path)
 	var fileInfos []fs.FileInfo
 	prefix := strings.TrimRight(path, "/")
 	if prefix != "" {
@@ -93,6 +95,7 @@ func (driver *cosFs) MakeDir(_ context.Context, _ string, _ os.FileMode, opts ..
 }
 
 func (driver *cosFs) RemoveDir(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	prefix := strings.TrimRight(path, "/") + "/"
 	var marker string
 	opt := &cos.BucketGetOptions{
@@ -122,10 +125,12 @@ func (driver *cosFs) RemoveDir(ctx context.Context, path string, opts ...fs.Opti
 }
 
 func (driver *cosFs) Create(ctx context.Context, path string, opts ...fs.Option) (io.WriteCloser, error) {
+	path = driver.path(path)
 	return newCosWriter(ctx, driver.client, path, opts...), nil
 }
 
 func (driver *cosFs) Open(ctx context.Context, path string, opts ...fs.Option) (io.ReadCloser, error) {
+	path = driver.path(path)
 	resp, err := driver.client.Object.Get(ctx, path, nil)
 	if err != nil {
 		return nil, err
@@ -135,10 +140,10 @@ func (driver *cosFs) Open(ctx context.Context, path string, opts ...fs.Option) (
 
 func (driver *cosFs) OpenFile(ctx context.Context, path string, flag int, _ os.FileMode, opts ...fs.Option) (io.ReadWriteCloser, error) {
 	if flag&os.O_RDWR != 0 {
-		return newCosReadWriter(ctx, driver.client, path, opts...), nil
+		return newCosReadWriter(ctx, driver.client, driver.path(path), opts...), nil
 	}
 	if flag&os.O_WRONLY != 0 {
-		return newCosReadWriter(ctx, driver.client, path, opts...), nil
+		return newCosReadWriter(ctx, driver.client, driver.path(path), opts...), nil
 	}
 	reader, err := driver.Open(ctx, path, opts...)
 	if err != nil {
@@ -148,11 +153,14 @@ func (driver *cosFs) OpenFile(ctx context.Context, path string, flag int, _ os.F
 }
 
 func (driver *cosFs) Remove(ctx context.Context, path string, opts ...fs.Option) error {
+	path = driver.path(path)
 	_, err := driver.client.Object.Delete(ctx, path)
 	return err
 }
 
 func (driver *cosFs) Copy(ctx context.Context, src, dst string, opts ...fs.Option) error {
+	src = driver.path(src)
+	dst = driver.path(dst)
 	sourceURL := strings.ReplaceAll(driver.config.BucketURL, "https://", "") + "/" + src
 	_, _, err := driver.client.Object.Copy(ctx, dst, sourceURL, nil)
 	return err
@@ -170,6 +178,7 @@ func (driver *cosFs) Rename(ctx context.Context, oldPath, newPath string, opts .
 }
 
 func (driver *cosFs) Stat(ctx context.Context, path string, opts ...fs.Option) (fs.FileInfo, error) {
+	path = driver.path(path)
 	resp, err := driver.client.Object.Head(ctx, path, nil)
 	if err != nil {
 		return nil, err
@@ -183,7 +192,7 @@ func (driver *cosFs) Stat(ctx context.Context, path string, opts ...fs.Option) (
 }
 
 func (driver *cosFs) GetMimeType(ctx context.Context, path string, opts ...fs.Option) (string, error) {
-	resp, err := driver.client.Object.Head(ctx, path, nil)
+	resp, err := driver.client.Object.Head(ctx, driver.path(path), nil)
 	if err != nil {
 		return "", err
 	}
@@ -212,6 +221,7 @@ func (driver *cosFs) GetMimeType(ctx context.Context, path string, opts ...fs.Op
 }
 
 func (driver *cosFs) SetMetadata(ctx context.Context, path string, metadata map[string]any, opts ...fs.Option) error {
+	path = driver.path(path)
 	opt := &cos.ObjectCopyOptions{
 		ObjectCopyHeaderOptions: &cos.ObjectCopyHeaderOptions{
 			XCosMetadataDirective: "Replaced",
@@ -234,6 +244,7 @@ func (driver *cosFs) SetMetadata(ctx context.Context, path string, metadata map[
 }
 
 func (driver *cosFs) GetMetadata(ctx context.Context, path string, opts ...fs.Option) (map[string]any, error) {
+	path = driver.path(path)
 	resp, err := driver.client.Object.Head(ctx, path, nil)
 	if err != nil {
 		return nil, err
@@ -266,6 +277,7 @@ func (driver *cosFs) Exists(ctx context.Context, path string, opts ...fs.Option)
 }
 
 func (driver *cosFs) IsDir(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	path = strings.TrimRight(path, "/") + "/"
 	opt := &cos.BucketGetOptions{
 		Prefix:    path,
@@ -280,5 +292,13 @@ func (driver *cosFs) IsDir(ctx context.Context, path string, opts ...fs.Option) 
 }
 
 func (driver *cosFs) IsFile(ctx context.Context, path string, opts ...fs.Option) (bool, error) {
+	path = driver.path(path)
 	return driver.client.Object.IsExist(ctx, path)
+}
+
+func (driver *cosFs) path(path string) string {
+	if driver.config.SubPath != "" {
+		return strings.Trim(driver.config.SubPath, "/") + "/" + path
+	}
+	return path
 }
