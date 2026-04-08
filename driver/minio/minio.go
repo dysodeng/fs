@@ -69,8 +69,12 @@ func (driver *minioFs) List(ctx context.Context, path string, opts ...fs.Option)
 	var fileInfos []fs.FileInfo
 
 	// 使用ListObjects来获取指定前缀的对象
+	prefix := strings.TrimRight(path, "/")
+	if prefix != "" {
+		prefix += "/"
+	}
 	options := minio.ListObjectsOptions{
-		Prefix:    strings.TrimRight(path, "/"),
+		Prefix:    prefix,
 		Recursive: false,
 	}
 
