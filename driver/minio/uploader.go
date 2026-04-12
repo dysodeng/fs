@@ -5,7 +5,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 	"github.com/minio/minio-go/v7"
 )
 

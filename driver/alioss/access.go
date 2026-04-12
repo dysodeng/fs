@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 )
 
 func (driver *ossFs) SignFullUrl(ctx context.Context, path string, opts ...fs.Option) (string, error) {

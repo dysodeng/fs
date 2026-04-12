@@ -1,4 +1,4 @@
-module github.com/dysodeng/fs
+module github.com/goairix/fs
 
 go 1.23.0
 

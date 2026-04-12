@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dysodeng/fs/driver/local"
+	"github.com/goairix/fs/driver/local"
 )
 
 func Local() {

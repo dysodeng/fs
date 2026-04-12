@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 )
 
 // localFs 本地文件系统

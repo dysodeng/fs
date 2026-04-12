@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 )
 
 type Config struct {

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"github.com/dysodeng/fs/examples"
+	"github.com/goairix/fs/examples"
 )
 
 var driver string

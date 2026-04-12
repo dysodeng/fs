@@ -7,8 +7,8 @@ import (
 	"log"
 	"time"
 
-	f "github.com/dysodeng/fs"
-	"github.com/dysodeng/fs/driver/minio"
+	f "github.com/goairix/fs"
+	"github.com/goairix/fs/driver/minio"
 )
 
 func MinIO() {

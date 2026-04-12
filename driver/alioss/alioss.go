@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 )
 
 type Config struct {

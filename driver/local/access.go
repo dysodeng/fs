@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 )
 
 func (driver *localFs) SignFullUrl(ctx context.Context, path string, opts ...fs.Option) (string, error) {

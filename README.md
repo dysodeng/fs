@@ -1,8 +1,8 @@
 # Go FileSystem
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/dysodeng/fs.svg)](https://pkg.go.dev/github.com/dysodeng/fs)
-[![Go Report Card](https://goreportcard.com/badge/github.com/dysodeng/fs)](https://goreportcard.com/report/github.com/dysodeng/fs)
-[![License](https://img.shields.io/github/license/dysodeng/fs.svg)](https://github.com/dysodeng/fs/blob/main/LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/goairix/fs.svg)](https://pkg.go.dev/github.com/goairix/fs)
+[![Go Report Card](https://goreportcard.com/badge/github.com/goairix/fs)](https://goreportcard.com/report/github.com/goairix/fs)
+[![License](https://img.shields.io/github/license/dysodeng/fs.svg)](https://github.com/goairix/fs/blob/main/LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dysodeng/fs)
 
 Go FileSystem 是一个统一的文件系统接口实现，支持本地文件系统和多种云存储服务。它提供了一致的 API 来操作不同的存储系统，使得在不同存储系统之间切换变得简单。
@@ -30,7 +30,7 @@ Go FileSystem 是一个统一的文件系统接口实现，支持本地文件系
 ## Installation
 
 ```bash
-go get github.com/dysodeng/fs
+go get github.com/goairix/fs
 ```
 
 ## Usage
@@ -40,8 +40,8 @@ package main
 
 import (
     "context"
-    f "github.com/dysodeng/fs"
-    "github.com/dysodeng/fs/driver/local"
+    f "github.com/goairix/fs"
+    "github.com/goairix/fs/driver/local"
 )
 
 func main() {
@@ -69,8 +69,8 @@ package main
 
 import (
     "context"
-    f "github.com/dysodeng/fs"
-    "github.com/dysodeng/fs/driver/minio"
+    f "github.com/goairix/fs"
+    "github.com/goairix/fs/driver/minio"
 )
 
 func main() {
@@ -108,8 +108,8 @@ package main
 
 import (
     "context"
-    f "github.com/dysodeng/fs"
-    "github.com/dysodeng/fs/driver/alioss"
+    f "github.com/goairix/fs"
+    "github.com/goairix/fs/driver/alioss"
 )
 
 func main() {
@@ -145,8 +145,8 @@ package main
 
 import (
     "context"
-    f "github.com/dysodeng/fs"
-    "github.com/dysodeng/fs/driver/hwobs"
+    f "github.com/goairix/fs"
+    "github.com/goairix/fs/driver/hwobs"
 )
 
 func main() {
@@ -182,8 +182,8 @@ package main
 
 import (
     "context"
-    f "github.com/dysodeng/fs"
-    "github.com/dysodeng/fs/driver/txcos"
+    f "github.com/goairix/fs"
+    "github.com/goairix/fs/driver/txcos"
 )
 
 func main() {
@@ -218,8 +218,8 @@ package main
 
 import (
     "context"
-    f "github.com/dysodeng/fs"
-    "github.com/dysodeng/fs/driver/s3"
+    f "github.com/goairix/fs"
+    "github.com/goairix/fs/driver/s3"
 )
 
 func main() {
@@ -263,7 +263,7 @@ package main
 import (
     "context"
     "os"
-    "github.com/dysodeng/fs/driver/alioss" // 这里以阿里云OSS为例
+    "github.com/goairix/fs/driver/alioss" // 这里以阿里云OSS为例
 )
 
 func main() {
@@ -305,7 +305,7 @@ import (
     "context"
     "io"
     "os"
-    "github.com/dysodeng/fs/driver/alioss"
+    "github.com/goairix/fs/driver/alioss"
 )
 
 func main() {

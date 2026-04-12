@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 

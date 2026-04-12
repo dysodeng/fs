@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 )
 

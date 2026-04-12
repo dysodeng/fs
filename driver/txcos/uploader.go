@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 

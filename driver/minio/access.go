@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 )
 
 func (driver *minioFs) SignFullUrl(ctx context.Context, path string, opts ...fs.Option) (string, error) {

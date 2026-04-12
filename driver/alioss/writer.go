@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
-	"github.com/dysodeng/fs"
+	"github.com/goairix/fs"
 )
 
 // ossWriter 实现 io.WriteCloser 接口
