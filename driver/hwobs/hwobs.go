@@ -56,14 +56,18 @@ func (driver *obsFs) List(ctx context.Context, path string, opts ...fs.Option) (
 			Marker: marker,
 		}
 		input.Prefix = prefix
+		input.Delimiter = "/" // 只列一级：子目录聚合到 CommonPrefixes，避免递归返回所有对象
 
 		output, err := driver.client.ListObjects(input)
 		if err != nil {
 			return nil, err
 		}
 
-		// 添加文件
+		// 添加文件（跳过与 prefix 同名的目录占位对象）
 		for _, object := range output.Contents {
+			if object.Key == prefix {
+				continue
+			}
 			fileInfos = append(fileInfos, newObsFileInfo(object))
 		}
 
