@@ -34,10 +34,7 @@ func (driver *minioFs) InitMultipartUpload(ctx context.Context, path string, opt
 	for _, opt := range opts {
 		opt(o)
 	}
-	options := minio.PutObjectOptions{}
-	if o.ContentType != "" {
-		options.ContentType = o.ContentType
-	}
+	options := buildPutObjectOptions(o.ContentType, o.ContentDisposition, nil)
 	uploadID, err := driver.core.NewMultipartUpload(ctx, driver.config.BucketName, path, options)
 	if err != nil {
 		return "", err

@@ -12,13 +12,14 @@ import (
 
 // minioWriter 实现 io.WriteCloser 接口
 type minioWriter struct {
-	ctx         context.Context
-	client      *minio.Client
-	bucket      string
-	path        string
-	buffer      *bytes.Buffer
-	metadata    fs.Metadata
-	contentType string
+	ctx                context.Context
+	client             *minio.Client
+	bucket             string
+	path               string
+	buffer             *bytes.Buffer
+	metadata           fs.Metadata
+	contentType        string
+	contentDisposition string
 }
 
 func newMinioWriter(ctx context.Context, client *minio.Client, bucket, path string, opts ...fs.Option) *minioWriter {
@@ -38,6 +39,9 @@ func newMinioWriter(ctx context.Context, client *minio.Client, bucket, path stri
 	if o.ContentType != "" {
 		writer.contentType = o.ContentType
 	}
+	if o.ContentDisposition != "" {
+		writer.contentDisposition = o.ContentDisposition
+	}
 	if o.Metadata != nil {
 		writer.metadata = o.Metadata
 	}
@@ -54,26 +58,26 @@ func (w *minioWriter) Write(p []byte) (n int, err error) {
 	}
 }
 
+func buildPutObjectOptions(contentType, contentDisposition string, metadata fs.Metadata) minio.PutObjectOptions {
+	options := minio.PutObjectOptions{
+		ContentType:        contentType,
+		ContentDisposition: contentDisposition,
+	}
+	if metadata != nil {
+		options.UserMetadata = make(map[string]string, len(metadata))
+		for key, value := range metadata {
+			options.UserMetadata[key] = fmt.Sprintf("%v", value)
+		}
+	}
+	return options
+}
+
 func (w *minioWriter) Close() error {
 	select {
 	case <-w.ctx.Done():
 		return w.ctx.Err()
 	default:
-		opts := minio.PutObjectOptions{}
-
-		// 设置 ContentType
-		if w.contentType != "" {
-			opts.ContentType = w.contentType
-		}
-
-		// 处理metadata
-		if w.metadata != nil {
-			userMetadata := make(map[string]string)
-			for k, v := range w.metadata {
-				userMetadata[k] = fmt.Sprintf("%v", v)
-			}
-			opts.UserMetadata = userMetadata
-		}
+		opts := buildPutObjectOptions(w.contentType, w.contentDisposition, w.metadata)
 
 		_, err := w.client.PutObject(
 			w.ctx,
