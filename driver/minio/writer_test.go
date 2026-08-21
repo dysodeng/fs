@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"testing"
 
 	"github.com/goairix/fs"
@@ -23,7 +24,7 @@ func TestBuildPutObjectOptionsOmitsEmptyContentDisposition(t *testing.T) {
 }
 
 func TestNewMinioWriterPreservesContentDisposition(t *testing.T) {
-	writer := newMinioWriter(nil, nil, "bucket", "file.pdf", fs.WithContentDisposition("inline"))
+	writer := newMinioWriter(context.Background(), nil, "bucket", "file.pdf", fs.WithContentDisposition("inline"))
 
 	if writer.contentDisposition != "inline" {
 		t.Fatalf("contentDisposition = %q, want inline", writer.contentDisposition)

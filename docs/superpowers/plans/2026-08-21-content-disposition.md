@@ -85,6 +85,7 @@ git commit -m "feat: add content disposition option"
 package minio
 
 import (
+	"context"
 	"testing"
 
 	"github.com/goairix/fs"
@@ -107,7 +108,7 @@ func TestBuildPutObjectOptionsOmitsEmptyContentDisposition(t *testing.T) {
 }
 
 func TestNewMinioWriterPreservesContentDisposition(t *testing.T) {
-	writer := newMinioWriter(nil, nil, "bucket", "file.pdf", fs.WithContentDisposition("inline"))
+	writer := newMinioWriter(context.Background(), nil, "bucket", "file.pdf", fs.WithContentDisposition("inline"))
 
 	if writer.contentDisposition != "inline" {
 		t.Fatalf("contentDisposition = %q, want inline", writer.contentDisposition)
@@ -184,6 +185,7 @@ package hwobs
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/goairix/fs"
@@ -207,7 +209,7 @@ func TestBuildInitiateMultipartUploadInputIncludesContentDisposition(t *testing.
 }
 
 func TestNewObsWriterPreservesContentDisposition(t *testing.T) {
-	writer := newObsWriter(nil, nil, "bucket", "file.pdf", fs.WithContentDisposition("inline"))
+	writer := newObsWriter(context.Background(), nil, "bucket", "file.pdf", fs.WithContentDisposition("inline"))
 
 	if writer.contentDisposition != "inline" {
 		t.Fatalf("contentDisposition = %q, want inline", writer.contentDisposition)
@@ -303,6 +305,7 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/goairix/fs"
@@ -326,7 +329,7 @@ func TestBuildCreateMultipartUploadInputIncludesContentDisposition(t *testing.T)
 }
 
 func TestNewS3WriterPreservesContentDisposition(t *testing.T) {
-	writer := newS3Writer(nil, nil, "bucket", "file.pdf", fs.WithContentDisposition("inline"))
+	writer := newS3Writer(context.Background(), nil, "bucket", "file.pdf", fs.WithContentDisposition("inline"))
 
 	if writer.contentDisposition != "inline" {
 		t.Fatalf("contentDisposition = %q, want inline", writer.contentDisposition)
@@ -451,7 +454,7 @@ func TestBuildPutObjectOptionsOmitsEmptyContentDisposition(t *testing.T) {
 }
 
 func TestNewOssWriterPreservesContentDisposition(t *testing.T) {
-	writer := newOssWriter(nil, nil, "file.pdf", fs.WithContentDisposition("inline"))
+	writer := newOssWriter(context.Background(), nil, "file.pdf", fs.WithContentDisposition("inline"))
 
 	if writer.contentDisposition != "inline" {
 		t.Fatalf("contentDisposition = %q, want inline", writer.contentDisposition)
@@ -525,6 +528,7 @@ git commit -m "feat(alioss): set content disposition on uploads"
 package txcos
 
 import (
+	"context"
 	"testing"
 
 	"github.com/goairix/fs"
@@ -546,7 +550,7 @@ func TestBuildObjectPutHeaderOptionsOmitsEmptyValues(t *testing.T) {
 }
 
 func TestNewCosWriterPreservesContentDisposition(t *testing.T) {
-	writer := newCosWriter(nil, nil, "file.pdf", fs.WithContentDisposition("inline"))
+	writer := newCosWriter(context.Background(), nil, "file.pdf", fs.WithContentDisposition("inline"))
 
 	if writer.contentDisposition != "inline" {
 		t.Fatalf("contentDisposition = %q, want inline", writer.contentDisposition)
