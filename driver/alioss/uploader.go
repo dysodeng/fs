@@ -34,12 +34,7 @@ func (driver *ossFs) InitMultipartUpload(ctx context.Context, path string, opts 
 	for _, opt := range opts {
 		opt(o)
 	}
-	options := []oss.Option{
-		oss.WithContext(ctx),
-	}
-	if o.ContentType != "" {
-		options = append(options, oss.ContentType(o.ContentType))
-	}
+	options := buildPutObjectOptions(ctx, o.ContentType, o.ContentDisposition, nil)
 
 	initMultipartUploadResult, err := driver.bucket.InitiateMultipartUpload(path, options...)
 	if err != nil {

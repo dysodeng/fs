@@ -12,12 +12,13 @@ import (
 
 // ossWriter 实现 io.WriteCloser 接口
 type ossWriter struct {
-	ctx         context.Context
-	bucket      *oss.Bucket
-	path        string
-	buffer      *bytes.Buffer
-	metadata    fs.Metadata
-	contentType string
+	ctx                context.Context
+	bucket             *oss.Bucket
+	path               string
+	buffer             *bytes.Buffer
+	metadata           fs.Metadata
+	contentType        string
+	contentDisposition string
 }
 
 func newOssWriter(ctx context.Context, bucket *oss.Bucket, path string, opts ...fs.Option) *ossWriter {
@@ -35,6 +36,9 @@ func newOssWriter(ctx context.Context, bucket *oss.Bucket, path string, opts ...
 	if o.ContentType != "" {
 		writer.contentType = o.ContentType
 	}
+	if o.ContentDisposition != "" {
+		writer.contentDisposition = o.ContentDisposition
+	}
 	if o.Metadata != nil {
 		writer.metadata = o.Metadata
 	}
@@ -51,26 +55,26 @@ func (w *ossWriter) Write(p []byte) (n int, err error) {
 	}
 }
 
+func buildPutObjectOptions(ctx context.Context, contentType, contentDisposition string, metadata fs.Metadata) []oss.Option {
+	options := []oss.Option{oss.WithContext(ctx)}
+	if contentType != "" {
+		options = append(options, oss.ContentType(contentType))
+	}
+	if contentDisposition != "" {
+		options = append(options, oss.ContentDisposition(contentDisposition))
+	}
+	for key, value := range metadata {
+		options = append(options, oss.Meta(key, fmt.Sprintf("%v", value)))
+	}
+	return options
+}
+
 func (w *ossWriter) Close() error {
 	select {
 	case <-w.ctx.Done():
 		return w.ctx.Err()
 	default:
-		options := []oss.Option{
-			oss.WithContext(w.ctx),
-		}
-
-		// 设置 ContentType
-		if w.contentType != "" {
-			options = append(options, oss.ContentType(w.contentType))
-		}
-
-		// 处理metadata
-		if w.metadata != nil {
-			for k, v := range w.metadata {
-				options = append(options, oss.Meta(k, fmt.Sprintf("%v", v)))
-			}
-		}
+		options := buildPutObjectOptions(w.ctx, w.contentType, w.contentDisposition, w.metadata)
 
 		return w.bucket.PutObject(w.path, bytes.NewReader(w.buffer.Bytes()), options...)
 	}
