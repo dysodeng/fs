@@ -34,9 +34,8 @@ func (driver *cosFs) InitMultipartUpload(ctx context.Context, path string, opts 
 	for _, opt := range opts {
 		opt(o)
 	}
-	options := &cos.InitiateMultipartUploadOptions{}
-	if o.ContentType != "" {
-		options.ContentType = o.ContentType
+	options := &cos.InitiateMultipartUploadOptions{
+		ObjectPutHeaderOptions: buildObjectPutHeaderOptions(o.ContentType, o.ContentDisposition),
 	}
 	res, _, err := driver.client.Object.InitiateMultipartUpload(ctx, path, options)
 	if err != nil {

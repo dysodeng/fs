@@ -12,12 +12,13 @@ import (
 )
 
 type cosWriter struct {
-	ctx         context.Context
-	client      *cos.Client
-	path        string
-	buffer      *bytes.Buffer
-	metadata    fs.Metadata
-	contentType string
+	ctx                context.Context
+	client             *cos.Client
+	path               string
+	buffer             *bytes.Buffer
+	metadata           fs.Metadata
+	contentType        string
+	contentDisposition string
 }
 
 func newCosWriter(ctx context.Context, client *cos.Client, path string, opts ...fs.Option) *cosWriter {
@@ -36,6 +37,9 @@ func newCosWriter(ctx context.Context, client *cos.Client, path string, opts ...
 	if o.ContentType != "" {
 		writer.contentType = o.ContentType
 	}
+	if o.ContentDisposition != "" {
+		writer.contentDisposition = o.ContentDisposition
+	}
 	if o.Metadata != nil {
 		writer.metadata = o.Metadata
 	}
@@ -47,12 +51,16 @@ func (w *cosWriter) Write(p []byte) (n int, err error) {
 	return w.buffer.Write(p)
 }
 
+func buildObjectPutHeaderOptions(contentType, contentDisposition string) *cos.ObjectPutHeaderOptions {
+	return &cos.ObjectPutHeaderOptions{
+		ContentType:        contentType,
+		ContentDisposition: contentDisposition,
+	}
+}
+
 func (w *cosWriter) Close() error {
-	opt := &cos.ObjectPutOptions{}
-	if w.contentType != "" {
-		opt.ObjectPutHeaderOptions = &cos.ObjectPutHeaderOptions{
-			ContentType: w.contentType,
-		}
+	opt := &cos.ObjectPutOptions{
+		ObjectPutHeaderOptions: buildObjectPutHeaderOptions(w.contentType, w.contentDisposition),
 	}
 	if w.metadata != nil {
 		opt.XCosMetaXXX = &http.Header{}
