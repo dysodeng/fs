@@ -29,19 +29,27 @@ func (driver *s3Fs) Upload(ctx context.Context, path string, reader io.Reader, o
 	return file.Close()
 }
 
+func buildCreateMultipartUploadInput(bucket, path string, options *fs.Options) *s3.CreateMultipartUploadInput {
+	input := &s3.CreateMultipartUploadInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(path),
+	}
+	if options.ContentType != "" {
+		input.ContentType = aws.String(options.ContentType)
+	}
+	if options.ContentDisposition != "" {
+		input.ContentDisposition = aws.String(options.ContentDisposition)
+	}
+	return input
+}
+
 func (driver *s3Fs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
 	path = driver.path(path)
 	o := &fs.Options{}
 	for _, opt := range opts {
 		opt(o)
 	}
-	input := &s3.CreateMultipartUploadInput{
-		Bucket: aws.String(driver.config.BucketName),
-		Key:    aws.String(path),
-	}
-	if o.ContentType != "" {
-		input.ContentType = aws.String(o.ContentType)
-	}
+	input := buildCreateMultipartUploadInput(driver.config.BucketName, path, o)
 	output, err := driver.client.CreateMultipartUpload(ctx, input)
 	if err != nil {
 		return "", err

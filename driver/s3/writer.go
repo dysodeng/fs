@@ -12,13 +12,14 @@ import (
 )
 
 type s3Writer struct {
-	ctx         context.Context
-	client      *s3.Client
-	bucket      string
-	path        string
-	buffer      *bytes.Buffer
-	metadata    fs.Metadata
-	contentType string
+	ctx                context.Context
+	client             *s3.Client
+	bucket             string
+	path               string
+	buffer             *bytes.Buffer
+	metadata           fs.Metadata
+	contentType        string
+	contentDisposition string
 }
 
 func newS3Writer(ctx context.Context, client *s3.Client, bucket, path string, opts ...fs.Option) *s3Writer {
@@ -38,6 +39,9 @@ func newS3Writer(ctx context.Context, client *s3.Client, bucket, path string, op
 	if o.ContentType != "" {
 		writer.contentType = o.ContentType
 	}
+	if o.ContentDisposition != "" {
+		writer.contentDisposition = o.ContentDisposition
+	}
 	if o.Metadata != nil {
 		writer.metadata = o.Metadata
 	}
@@ -49,23 +53,36 @@ func (w *s3Writer) Write(p []byte) (n int, err error) {
 	return w.buffer.Write(p)
 }
 
-func (w *s3Writer) Close() error {
+func buildPutObjectInput(bucket, path string, body io.Reader, contentType, contentDisposition string, metadata fs.Metadata) *s3.PutObjectInput {
 	input := &s3.PutObjectInput{
-		Bucket: aws.String(w.bucket),
-		Key:    aws.String(w.path),
-		Body:   bytes.NewReader(w.buffer.Bytes()),
+		Bucket: aws.String(bucket),
+		Key:    aws.String(path),
+		Body:   body,
 	}
-
-	if w.contentType != "" {
-		input.ContentType = aws.String(w.contentType)
+	if contentType != "" {
+		input.ContentType = aws.String(contentType)
 	}
-
-	if w.metadata != nil {
-		input.Metadata = make(map[string]string)
-		for k, v := range w.metadata {
-			input.Metadata[k] = fmt.Sprintf("%v", v)
+	if contentDisposition != "" {
+		input.ContentDisposition = aws.String(contentDisposition)
+	}
+	if metadata != nil {
+		input.Metadata = make(map[string]string, len(metadata))
+		for key, value := range metadata {
+			input.Metadata[key] = fmt.Sprintf("%v", value)
 		}
 	}
+	return input
+}
+
+func (w *s3Writer) Close() error {
+	input := buildPutObjectInput(
+		w.bucket,
+		w.path,
+		bytes.NewReader(w.buffer.Bytes()),
+		w.contentType,
+		w.contentDisposition,
+		w.metadata,
+	)
 
 	_, err := w.client.PutObject(w.ctx, input)
 	return err
