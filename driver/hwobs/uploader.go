@@ -27,18 +27,22 @@ func (driver *obsFs) Upload(ctx context.Context, path string, reader io.Reader, 
 	return file.Close()
 }
 
+func buildInitiateMultipartUploadInput(bucket, path string, options *fs.Options) *obs.InitiateMultipartUploadInput {
+	input := &obs.InitiateMultipartUploadInput{}
+	input.Bucket = bucket
+	input.Key = path
+	input.ContentType = options.ContentType
+	input.ContentDisposition = options.ContentDisposition
+	return input
+}
+
 func (driver *obsFs) InitMultipartUpload(ctx context.Context, path string, opts ...fs.Option) (string, error) {
 	path = driver.path(path)
 	o := &fs.Options{}
 	for _, opt := range opts {
 		opt(o)
 	}
-	input := &obs.InitiateMultipartUploadInput{}
-	input.Bucket = driver.config.BucketName
-	input.Key = path
-	if o.ContentType != "" {
-		input.ContentType = o.ContentType
-	}
+	input := buildInitiateMultipartUploadInput(driver.config.BucketName, path, o)
 
 	output, err := driver.client.InitiateMultipartUpload(input)
 	if err != nil {

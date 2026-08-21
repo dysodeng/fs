@@ -12,13 +12,14 @@ import (
 
 // obsWriter 实现 io.WriteCloser 接口
 type obsWriter struct {
-	ctx         context.Context
-	client      *obs.ObsClient
-	bucket      string
-	path        string
-	buffer      *bytes.Buffer
-	metadata    fs.Metadata
-	contentType string
+	ctx                context.Context
+	client             *obs.ObsClient
+	bucket             string
+	path               string
+	buffer             *bytes.Buffer
+	metadata           fs.Metadata
+	contentType        string
+	contentDisposition string
 }
 
 func newObsWriter(ctx context.Context, client *obs.ObsClient, bucket, path string, opts ...fs.Option) *obsWriter {
@@ -38,6 +39,9 @@ func newObsWriter(ctx context.Context, client *obs.ObsClient, bucket, path strin
 	if o.ContentType != "" {
 		writer.contentType = o.ContentType
 	}
+	if o.ContentDisposition != "" {
+		writer.contentDisposition = o.ContentDisposition
+	}
 	if o.Metadata != nil {
 		writer.metadata = o.Metadata
 	}
@@ -54,29 +58,34 @@ func (w *obsWriter) Write(p []byte) (n int, err error) {
 	}
 }
 
+func buildPutObjectInput(bucket, path string, body io.Reader, contentType, contentDisposition string, metadata fs.Metadata) *obs.PutObjectInput {
+	input := &obs.PutObjectInput{Body: body}
+	input.Bucket = bucket
+	input.Key = path
+	input.ContentType = contentType
+	input.ContentDisposition = contentDisposition
+	if metadata != nil {
+		input.Metadata = make(map[string]string, len(metadata))
+		for key, value := range metadata {
+			input.Metadata[key] = fmt.Sprintf("%v", value)
+		}
+	}
+	return input
+}
+
 func (w *obsWriter) Close() error {
 	select {
 	case <-w.ctx.Done():
 		return w.ctx.Err()
 	default:
-		input := &obs.PutObjectInput{
-			Body: bytes.NewReader(w.buffer.Bytes()),
-		}
-		input.Bucket = w.bucket
-		input.Key = w.path
-
-		// 设置 ContentType
-		if w.contentType != "" {
-			input.ContentType = w.contentType
-		}
-
-		// 处理metadata
-		if w.metadata != nil {
-			input.Metadata = make(map[string]string)
-			for k, v := range w.metadata {
-				input.Metadata[k] = fmt.Sprintf("%v", v)
-			}
-		}
+		input := buildPutObjectInput(
+			w.bucket,
+			w.path,
+			bytes.NewReader(w.buffer.Bytes()),
+			w.contentType,
+			w.contentDisposition,
+			w.metadata,
+		)
 
 		_, err := w.client.PutObject(input)
 		return err
