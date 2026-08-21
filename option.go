@@ -14,10 +14,11 @@ const (
 type Option func(*Options)
 
 type Options struct {
-	Metadata       Metadata
-	ContentType    string
-	CdnDomain      string
-	SignUrlExpires time.Duration
+	Metadata           Metadata
+	ContentType        string
+	ContentDisposition string
+	CdnDomain          string
+	SignUrlExpires     time.Duration
 }
 
 // WithMetadata 设置元数据
@@ -31,6 +32,13 @@ func WithMetadata(metadata Metadata) Option {
 func WithContentType(contentType string) Option {
 	return func(o *Options) {
 		o.ContentType = contentType
+	}
+}
+
+// WithContentDisposition 设置文件的 Content-Disposition
+func WithContentDisposition(contentDisposition string) Option {
+	return func(o *Options) {
+		o.ContentDisposition = contentDisposition
 	}
 }
 
